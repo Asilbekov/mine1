@@ -34,11 +34,12 @@ import {
     TrendingUp,
     Clock,
     AlertTriangle,
-    XCircle
+    XCircle,
+    Rocket
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-type AutomationStatus = 'idle' | 'running' | 'paused' | 'error' | 'session_expired';
+type AutomationStatus = 'idle' | 'running' | 'paused' | 'error' | 'session_expired' | 'initializing';
 
 type AutomationStats = {
     pending: number;
@@ -55,6 +56,7 @@ export default function Dashboard() {
     const [loopCount, setLoopCount] = useState(0);
     const [lastRunTime, setLastRunTime] = useState<Date | null>(null);
     const [isInitialized, setIsInitialized] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const loopRef = useRef<NodeJS.Timeout | null>(null);
     const isRunningRef = useRef(false);
@@ -78,61 +80,88 @@ export default function Dashboard() {
         }
     }, []);
 
+    // Check initialization status
+    const checkInitialization = useCallback(async () => {
+        try {
+            const response = await fetch('/api/init');
+            const data = await response.json();
+            setIsInitialized(data.initialized);
+            return data.initialized;
+        } catch {
+            return false;
+        }
+    }, []);
+
     // Initialize database with defaults
     const initializeDatabase = async () => {
+        setAutomationStatus('initializing');
         try {
             const response = await fetch('/api/init', { method: 'POST' });
             const data = await response.json();
             if (data.success) {
                 setIsInitialized(true);
-                fetchStats();
+                await fetchStats();
+                setError(null);
+            } else {
+                setError(data.error || 'Initialization failed');
             }
         } catch (error) {
             console.error('Init error:', error);
+            setError(String(error));
+        } finally {
+            setAutomationStatus('idle');
         }
     };
 
-    // Parse Excel and create check records  
-    const parseExcel = async () => {
-        try {
-            const response = await fetch('/api/py/parse_excel', { method: 'POST' });
-            const data = await response.json();
-            if (data.success) {
-                fetchStats();
-                return data;
+    // Auto-initialize on first load
+    useEffect(() => {
+        const init = async () => {
+            setIsLoading(true);
+            const initialized = await checkInitialization();
+            if (!initialized) {
+                await initializeDatabase();
             }
-            return null;
-        } catch (error) {
-            console.error('Parse error:', error);
-            return null;
-        }
-    };
+            await fetchStats();
+            setIsLoading(false);
+        };
+        init();
+    }, [checkInitialization, fetchStats]);
 
-    // Run a single automation batch
-    const runBatch = async (): Promise<boolean> => {
+    // Run a single automation batch using TypeScript API
+    const runBatch = async (): Promise<{ continue: boolean; error?: string }> => {
         try {
-            const response = await fetch('/api/py/automation', { method: 'POST' });
+            const response = await fetch('/api/automation', { method: 'POST' });
             const data = await response.json();
 
             setLastRunTime(new Date());
-            fetchStats();
+            await fetchStats();
+
+            if (data.needsInit) {
+                await initializeDatabase();
+                return { continue: true };
+            }
 
             if (data.success) {
-                if (data.session_expired) {
+                if (data.sessionExpired) {
                     setAutomationStatus('session_expired');
-                    setError('Session expired - please update cookies');
-                    return false;
+                    setError('Session expired - please update cookies in the Session tab');
+                    return { continue: false, error: 'Session expired' };
                 }
                 setLoopCount(prev => prev + 1);
-                return true;
+
+                // Check if more pending
+                if (data.processed === 0) {
+                    return { continue: false }; // No more to process
+                }
+                return { continue: true };
             } else {
                 setError(data.error || 'Batch failed');
-                return false;
+                return { continue: false, error: data.error };
             }
         } catch (error) {
             console.error('Automation error:', error);
             setError(String(error));
-            return false;
+            return { continue: false, error: String(error) };
         }
     };
 
@@ -142,34 +171,29 @@ export default function Dashboard() {
         setError(null);
         isRunningRef.current = true;
 
-        // First, parse Excel if needed
-        if (stats.total === 0) {
-            await parseExcel();
+        // Ensure initialized
+        if (!isInitialized) {
+            await initializeDatabase();
         }
 
         // Run loop
         const runLoop = async () => {
             if (!isRunningRef.current) return;
 
-            const success = await runBatch();
+            const result = await runBatch();
 
-            if (!success || !isRunningRef.current) {
-                if (isRunningRef.current && automationStatus !== 'session_expired') {
+            if (!result.continue || !isRunningRef.current) {
+                if (result.error) {
                     setAutomationStatus('error');
+                } else {
+                    setAutomationStatus('idle');
                 }
+                isRunningRef.current = false;
                 return;
             }
 
-            // Check if there are more pending
-            await fetchStats();
-
-            if (stats.pending > 0 && isRunningRef.current) {
-                // Continue with delay (5 seconds between batches)
-                loopRef.current = setTimeout(runLoop, 5000);
-            } else if (stats.pending === 0) {
-                setAutomationStatus('idle');
-                isRunningRef.current = false;
-            }
+            // Continue with delay (3 seconds between batches)
+            loopRef.current = setTimeout(runLoop, 3000);
         };
 
         runLoop();
@@ -192,16 +216,16 @@ export default function Dashboard() {
         }
         setAutomationStatus('idle');
         setLoopCount(0);
+        setError(null);
     };
 
     const resumeAutomation = () => {
         startAutomation();
     };
 
-    // Fetch stats on mount and periodically
+    // Fetch stats periodically
     useEffect(() => {
-        fetchStats();
-        const interval = setInterval(fetchStats, 10000);
+        const interval = setInterval(fetchStats, 5000);
         return () => clearInterval(interval);
     }, [fetchStats]);
 
@@ -217,17 +241,31 @@ export default function Dashboard() {
     const getStatusBadge = () => {
         switch (automationStatus) {
             case 'running':
-                return <Badge className="bg-green-500/10 text-green-400 border-green-500/20"><Activity className="h-3 w-3 mr-1 animate-pulse" /> Running</Badge>;
+                return <Badge className="bg-green-500/10 text-green-400 border-green-500/20 animate-pulse"><Activity className="h-3 w-3 mr-1" /> Running</Badge>;
             case 'paused':
                 return <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20"><Pause className="h-3 w-3 mr-1" /> Paused</Badge>;
             case 'error':
                 return <Badge className="bg-red-500/10 text-red-400 border-red-500/20"><XCircle className="h-3 w-3 mr-1" /> Error</Badge>;
             case 'session_expired':
                 return <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20"><AlertTriangle className="h-3 w-3 mr-1" /> Session Expired</Badge>;
+            case 'initializing':
+                return <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20"><Loader2 className="h-3 w-3 mr-1 animate-spin" /> Initializing</Badge>;
             default:
-                return <Badge className="bg-white/5 text-muted-foreground border-white/10"><Timer className="h-3 w-3 mr-1" /> Idle</Badge>;
+                return <Badge className="bg-white/5 text-muted-foreground border-white/10"><Timer className="h-3 w-3 mr-1" /> Ready</Badge>;
         }
     };
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-background flex items-center justify-center">
+                <div className="text-center space-y-4">
+                    <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
+                    <p className="text-lg text-muted-foreground">Initializing automation system...</p>
+                    <p className="text-sm text-muted-foreground">Loading config.py defaults</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/30">
@@ -240,11 +278,12 @@ export default function Dashboard() {
             <div className="relative z-10 container mx-auto p-6 md:p-8 lg:p-12">
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
                     <div>
-                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm">
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm flex items-center gap-3">
+                            <Rocket className="h-10 w-10 text-primary" />
                             Automate AI
                         </h1>
                         <p className="text-lg text-muted-foreground mt-2 max-w-lg">
-                            Orchestrate check automation with Gemini CAPTCHA solving
+                            Check automation with Gemini CAPTCHA solving • {stats.total} checks loaded
                         </p>
                     </div>
 
@@ -254,7 +293,7 @@ export default function Dashboard() {
                             {getStatusBadge()}
                             {loopCount > 0 && (
                                 <Badge variant="secondary" className="font-mono">
-                                    <RefreshCw className="h-3 w-3 mr-1" /> Loop #{loopCount}
+                                    <RefreshCw className="h-3 w-3 mr-1" /> Batch #{loopCount}
                                 </Badge>
                             )}
                             {lastRunTime && (
@@ -266,9 +305,19 @@ export default function Dashboard() {
                         </div>
 
                         <div className="flex gap-2">
-                            {automationStatus === 'idle' && (
-                                <Button variant="premium" size="lg" onClick={startAutomation} className="flex-1">
-                                    <Play className="h-5 w-5 mr-2" />
+                            {(automationStatus === 'idle' || automationStatus === 'initializing') && (
+                                <Button
+                                    variant="premium"
+                                    size="lg"
+                                    onClick={startAutomation}
+                                    className="flex-1"
+                                    disabled={automationStatus === 'initializing'}
+                                >
+                                    {automationStatus === 'initializing' ? (
+                                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                    ) : (
+                                        <Play className="h-5 w-5 mr-2" />
+                                    )}
                                     Start Automation
                                 </Button>
                             )}
@@ -295,15 +344,21 @@ export default function Dashboard() {
                                 </>
                             )}
                             {(automationStatus === 'error' || automationStatus === 'session_expired') && (
-                                <Button variant="premium" size="lg" onClick={startAutomation} className="flex-1">
-                                    <RefreshCw className="h-5 w-5 mr-2" />
-                                    Retry
-                                </Button>
+                                <>
+                                    <Button variant="premium" size="lg" onClick={startAutomation} className="flex-1">
+                                        <RefreshCw className="h-5 w-5 mr-2" />
+                                        Retry
+                                    </Button>
+                                    <Button variant="outline" size="lg" onClick={() => setActiveTab('cookies')}>
+                                        <Cookie className="h-5 w-5" />
+                                    </Button>
+                                </>
                             )}
                         </div>
 
                         {error && (
-                            <div className="text-xs text-red-400 bg-red-500/10 px-3 py-2 rounded-lg">
+                            <div className="text-xs text-red-400 bg-red-500/10 px-3 py-2 rounded-lg border border-red-500/20">
+                                <AlertTriangle className="h-3 w-3 inline mr-1" />
                                 {error}
                             </div>
                         )}
@@ -313,19 +368,28 @@ export default function Dashboard() {
                 {/* Quick Stats Bar */}
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
                     {[
-                        { label: 'Total', value: stats.total, icon: Database, color: 'text-blue-400' },
-                        { label: 'Pending', value: stats.pending, icon: Timer, color: 'text-yellow-400' },
-                        { label: 'Processing', value: stats.processing, icon: Loader2, color: 'text-purple-400' },
-                        { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-green-400' },
-                        { label: 'Failed', value: stats.failed, icon: XCircle, color: 'text-red-400' },
+                        { label: 'Total', value: stats.total, icon: Database, color: 'text-blue-400', bg: 'from-blue-500/10' },
+                        { label: 'Pending', value: stats.pending, icon: Timer, color: 'text-yellow-400', bg: 'from-yellow-500/10' },
+                        { label: 'Processing', value: stats.processing, icon: Loader2, color: 'text-purple-400', bg: 'from-purple-500/10' },
+                        { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-green-400', bg: 'from-green-500/10' },
+                        { label: 'Failed', value: stats.failed, icon: XCircle, color: 'text-red-400', bg: 'from-red-500/10' },
                     ].map((stat) => (
-                        <div key={stat.label} className="bg-card/50 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                        <motion.div
+                            key={stat.label}
+                            className={`bg-gradient-to-br ${stat.bg} to-transparent backdrop-blur-sm border border-white/10 rounded-xl p-4 hover:border-white/20 transition-colors`}
+                            whileHover={{ scale: 1.02 }}
+                        >
                             <div className="flex items-center gap-2 mb-1">
-                                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                                <stat.icon className={`h-4 w-4 ${stat.color} ${stat.label === 'Processing' && stats.processing > 0 ? 'animate-spin' : ''}`} />
                                 <span className="text-xs text-muted-foreground">{stat.label}</span>
                             </div>
                             <div className="text-2xl font-bold">{stat.value.toLocaleString()}</div>
-                        </div>
+                            {stat.label === 'Completed' && stats.total > 0 && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    {Math.round((stats.completed / stats.total) * 100)}% done
+                                </div>
+                            )}
+                        </motion.div>
                     ))}
                 </div>
 
@@ -377,44 +441,59 @@ export default function Dashboard() {
                         <div className="pt-6 space-y-2">
                             <p className="text-sm font-semibold text-muted-foreground mb-2 pl-2 tracking-wider uppercase">Quick Actions</p>
                             <Button variant="outline" size="sm" className="w-full justify-start" onClick={initializeDatabase}>
-                                <Zap className="h-4 w-4 mr-2" /> Initialize Defaults
-                            </Button>
-                            <Button variant="outline" size="sm" className="w-full justify-start" onClick={parseExcel}>
-                                <Files className="h-4 w-4 mr-2" /> Parse Excel File
+                                <Zap className="h-4 w-4 mr-2" /> Re-initialize Defaults
                             </Button>
                             <Button variant="outline" size="sm" className="w-full justify-start" onClick={fetchStats}>
                                 <RefreshCw className="h-4 w-4 mr-2" /> Refresh Stats
                             </Button>
                         </div>
+
+                        {/* Status Info */}
+                        {isInitialized && (
+                            <div className="pt-4">
+                                <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3 text-xs">
+                                    <div className="flex items-center gap-2 text-green-400 font-medium">
+                                        <CheckCircle className="h-4 w-4" />
+                                        System Ready
+                                    </div>
+                                    <p className="text-muted-foreground mt-1">
+                                        Config loaded from config.py defaults
+                                    </p>
+                                </div>
+                            </div>
+                        )}
                     </nav>
 
                     {/* Main Content Area */}
                     <main className="col-span-1 md:col-span-3 space-y-6">
-                        <motion.div
-                            key={activeTab}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.4, ease: "easeOut" }}
-                            className="h-full"
-                        >
-                            {activeTab === "overview" && <AnalyticsDashboard />}
-                            {activeTab === "db" && <LogsViewer />}
-                            {activeTab === "files" && <FileManager />}
-                            {activeTab === "settings" && <SettingsPanel />}
-                            {activeTab === "cookies" && <CookieHelper />}
+                        <AnimatePresence mode="wait">
+                            <motion.div
+                                key={activeTab}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -10 }}
+                                transition={{ duration: 0.3 }}
+                                className="h-full"
+                            >
+                                {activeTab === "overview" && <AnalyticsDashboard />}
+                                {activeTab === "db" && <LogsViewer />}
+                                {activeTab === "files" && <FileManager />}
+                                {activeTab === "settings" && <SettingsPanel />}
+                                {activeTab === "cookies" && <CookieHelper />}
 
-                            {activeTab === "logic" && (
-                                <Card className="h-full border-none shadow-none bg-transparent">
-                                    <CardHeader className="px-0 pt-0">
-                                        <CardTitle className="text-2xl">Automation Pipeline</CardTitle>
-                                        <CardDescription>Configure the automation workflow - all settings from config.py</CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="p-0 h-[600px] rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
-                                        <LogicEditor />
-                                    </CardContent>
-                                </Card>
-                            )}
-                        </motion.div>
+                                {activeTab === "logic" && (
+                                    <Card className="h-full border-none shadow-none bg-transparent">
+                                        <CardHeader className="px-0 pt-0">
+                                            <CardTitle className="text-2xl">Automation Pipeline</CardTitle>
+                                            <CardDescription>Configure the automation workflow - all settings from config.py</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="p-0 h-[600px] rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
+                                            <LogicEditor />
+                                        </CardContent>
+                                    </Card>
+                                )}
+                            </motion.div>
+                        </AnimatePresence>
                     </main>
                 </div>
             </div>
