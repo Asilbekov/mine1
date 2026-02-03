@@ -24,7 +24,7 @@ const BOT_PERFORMANCE = [
     { name: 'Bot 4', value: 800 },
 ];
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f97316'];
 
 export function AnalyticsDashboard() {
     return (
@@ -94,9 +94,12 @@ export function AnalyticsDashboard() {
                                 <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                 <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#333" />
-                                <Tooltip contentStyle={{ backgroundColor: '#111', border: '1px solid #333' }} />
-                                <Area type="monotone" dataKey="success" stroke="#22c55e" fillOpacity={1} fill="url(#colorSuccess)" />
-                                <Area type="monotone" dataKey="failed" stroke="#ef4444" fillOpacity={1} fill="url(#colorFailed)" />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: 'rgba(20, 20, 30, 0.8)', borderColor: 'rgba(255,255,255,0.1)', backdropFilter: 'blur(10px)', borderRadius: '12px', color: '#fff' }}
+                                    itemStyle={{ color: '#e2e8f0' }}
+                                />
+                                <Area type="monotone" dataKey="success" stroke="#22c55e" strokeWidth={2} fillOpacity={1} fill="url(#colorSuccess)" />
+                                <Area type="monotone" dataKey="failed" stroke="#ef4444" strokeWidth={2} fillOpacity={1} fill="url(#colorFailed)" />
                             </AreaChart>
                         </ResponsiveContainer>
                     </CardContent>

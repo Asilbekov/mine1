@@ -70,13 +70,13 @@ export function FileManager() {
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Upload Zone */}
-                <Card className="border-2 border-dashed border-muted hover:border-primary transition-colors cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                <Card className="border-2 border-dashed border-white/10 bg-white/5 hover:bg-white/10 hover:border-primary/50 transition-all duration-300 cursor-pointer group" onClick={() => fileInputRef.current?.click()}>
                     <CardContent className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-                        <div className="p-4 bg-primary/10 rounded-full">
+                        <div className="p-4 bg-primary/10 rounded-full group-hover:scale-110 transition-transform duration-300 shadow-[0_0_20px_-5px_rgba(124,58,237,0.3)]">
                             <UploadCloud className="h-10 w-10 text-primary" />
                         </div>
                         <div>
-                            <h3 className="text-lg font-semibold">Drop files here or click to upload</h3>
+                            <h3 className="text-lg font-semibold group-hover:text-primary transition-colors">Drop files here or click to upload</h3>
                             <p className="text-sm text-muted-foreground mt-1">
                                 Support for Excel (.xlsx) and Archives (.zip)
                             </p>
@@ -89,7 +89,7 @@ export function FileManager() {
                             accept=".xlsx,.xls,.zip"
                             onChange={handleFileSelect}
                         />
-                        <Button variant="secondary">Select Files</Button>
+                        <Button variant="secondary" className="group-hover:bg-primary group-hover:text-white transition-colors">Select Files</Button>
                     </CardContent>
                 </Card>
 
@@ -112,22 +112,22 @@ export function FileManager() {
                                     initial={{ opacity: 0, height: 0 }}
                                     animate={{ opacity: 1, height: 'auto' }}
                                     exit={{ opacity: 0, height: 0 }}
-                                    className="flex items-center gap-4 p-3 bg-accent/20 rounded-lg border"
+                                    className="flex items-center gap-4 p-3 bg-white/5 hover:bg-white/10 backdrop-blur-sm rounded-lg border border-white/5 transition-colors group"
                                 >
-                                    <div className={`p-2 rounded-md ${file.type === 'excel' ? 'bg-green-500/20 text-green-500' : 'bg-yellow-500/20 text-yellow-500'}`}>
+                                    <div className={`p-2 rounded-md ${file.type === 'excel' ? 'bg-green-500/10 text-green-400 shadow-[0_0_15px_-3px_rgba(34,197,94,0.3)]' : 'bg-yellow-500/10 text-yellow-400 shadow-[0_0_15px_-3px_rgba(234,179,8,0.3)]'}`}>
                                         {file.type === 'excel' ? <FileSpreadsheet className="h-5 w-5" /> : <FileArchive className="h-5 w-5" />}
                                     </div>
 
                                     <div className="flex-1 min-w-0">
                                         <div className="flex justify-between mb-1">
-                                            <p className="font-medium text-sm truncate">{file.name}</p>
+                                            <p className="font-medium text-sm truncate text-foreground/90">{file.name}</p>
                                             <span className="text-xs text-muted-foreground">{file.size}</span>
                                         </div>
 
                                         {file.status === 'uploading' ? (
-                                            <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                                            <div className="h-1.5 w-full bg-secondary/50 rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-primary transition-all duration-300"
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 shadow-[0_0_10px_rgba(139,92,246,0.5)]"
                                                     style={{ width: `${file.progress}%` }}
                                                 />
                                             </div>

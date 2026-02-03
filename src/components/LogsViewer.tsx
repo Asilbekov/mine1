@@ -37,7 +37,7 @@ export function LogsViewer() {
                 <CardDescription>Real-time execution stream from Python workers</CardDescription>
             </CardHeader>
             <CardContent className="flex-1 min-h-[400px]">
-                <div className="bg-black/95 rounded-lg border border-border p-4 font-mono text-xs h-full overflow-hidden flex flex-col">
+                <div className="bg-black/80 backdrop-blur-md rounded-lg border border-white/10 p-4 font-mono text-xs h-full overflow-hidden flex flex-col shadow-inner">
                     <div className="flex justify-between items-center text-muted-foreground mb-2 pb-2 border-b border-white/10">
                         <span>Terminal Output</span>
                         <div className="flex gap-2">
@@ -52,11 +52,11 @@ export function LogsViewer() {
                                     <Badge
                                         variant="outline"
                                         className={`
-                                            h-5 text-[10px] px-1 uppercase shrink-0 w-16 justify-center
-                                            ${log.level === 'INFO' ? 'text-blue-400 border-blue-400/20' : ''}
-                                            ${log.level === 'WARN' ? 'text-yellow-400 border-yellow-400/20' : ''}
-                                            ${log.level === 'ERROR' ? 'text-red-400 border-red-400/20' : ''}
-                                            ${log.level === 'SUCCESS' ? 'text-green-400 border-green-400/20' : ''}
+                                            h-5 text-[10px] px-1 uppercase shrink-0 w-16 justify-center border
+                                            ${log.level === 'INFO' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10 shadow-[0_0_10px_rgba(59,130,246,0.2)]' : ''}
+                                            ${log.level === 'WARN' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10 shadow-[0_0_10px_rgba(234,179,8,0.2)]' : ''}
+                                            ${log.level === 'ERROR' ? 'text-red-400 border-red-500/30 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : ''}
+                                            ${log.level === 'SUCCESS' ? 'text-green-400 border-green-500/30 bg-green-500/10 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : ''}
                                         `}
                                     >
                                         {log.level}

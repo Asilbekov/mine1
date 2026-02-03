@@ -232,8 +232,9 @@ export function LogicEditor() {
                                     <motion.div
                                         whileHover={{ scale: 1.05 }}
                                         className={`
-                                w-72 p-4 rounded-xl border bg-card shadow-lg flex items-center gap-3 cursor-pointer
-                                ${node.type === 'trigger' ? 'border-yellow-500/50 shadow-yellow-500/10' : node.type === 'condition' ? 'border-purple-500/50 shadow-purple-500/10' : 'border-blue-500/50 shadow-blue-500/10'}
+                                w-72 p-4 rounded-xl border backdrop-blur-md shadow-xl flex items-center gap-3 cursor-pointer transition-all duration-300
+                                ${node.type === 'trigger' ? 'bg-yellow-500/10 border-yellow-500/30' : node.type === 'condition' ? 'bg-purple-500/10 border-purple-500/30' : 'bg-blue-500/10 border-blue-500/30'}
+                                hover:shadow-2xl hover:brightness-110
                             `}>
                                         <div className={`p-3 rounded-lg ${node.type === 'trigger' ? 'bg-yellow-500/20' : node.type === 'condition' ? 'bg-purple-500/20' : 'bg-blue-500/20'}`}>
                                             <node.icon className="w-6 h-6" />

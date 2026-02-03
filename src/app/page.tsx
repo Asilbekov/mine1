@@ -33,134 +33,140 @@ export default function Dashboard() {
     const toggleProcessing = () => setIsProcessing(!isProcessing);
 
     return (
-        <div className="min-h-screen bg-background text-foreground p-6 md:p-12 font-sans">
-            <header className="flex justify-between items-center mb-10">
-                <div>
-                    <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        Automate AI
-                    </h1>
-                    <p className="text-muted-foreground mt-2">
-                        Control, Edit Logic, and Monitor Your AI Operations
-                    </p>
-                </div>
-                <div className="flex gap-4 items-center">
-                    <Badge variant={isProcessing ? "success" : "secondary"} className="text-lg px-4 py-1 h-10">
-                        {isProcessing ? "System Active" : "System Idle"}
-                    </Badge>
-                    <Button variant="premium" size="lg" onClick={toggleProcessing}>
-                        {isProcessing ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
-                        {isProcessing ? "Pause Automation" : "Start Automation"}
-                    </Button>
-                </div>
-            </header>
+        <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/30">
+            {/* Ambient Background Effects */}
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob" />
+            <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-2000" />
+            <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-4000" />
 
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                {/* Sidebar / Navigation */}
-                <div className="col-span-1 space-y-4">
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-primary" onClick={() => setActiveTab("overview")}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <BarChart3 className="h-6 w-6 text-primary" />
-                            <div>
-                                <CardTitle className="text-lg">Dashboard</CardTitle>
-                                <CardDescription>Analytics & Stats</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-purple-500" onClick={() => setActiveTab("logic")}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Code className="h-6 w-6 text-purple-500" />
-                            <div>
-                                <CardTitle className="text-lg">Logic Editor</CardTitle>
-                                <CardDescription>Edit automation flows</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-orange-500" onClick={() => setActiveTab("files")}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Files className="h-6 w-6 text-orange-500" />
-                            <div>
-                                <CardTitle className="text-lg">File Manager</CardTitle>
-                                <CardDescription>Upload Excel & Zip</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-blue-500" onClick={() => setActiveTab("models")}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Bot className="h-6 w-6 text-blue-500" />
-                            <div>
-                                <CardTitle className="text-lg">AI Models</CardTitle>
-                                <CardDescription>Connect Gemini/Mistral</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                    <Card className="hover:bg-accent/50 transition-colors cursor-pointer border-l-4 border-l-transparent hover:border-l-green-500" onClick={() => setActiveTab("db")}>
-                        <CardHeader className="flex flex-row items-center gap-4">
-                            <Database className="h-6 w-6 text-green-500" />
-                            <div>
-                                <CardTitle className="text-lg">Data & Logs</CardTitle>
-                                <CardDescription>View processed checks</CardDescription>
-                            </div>
-                        </CardHeader>
-                    </Card>
-                </div>
+            {/* Content Container */}
+            <div className="relative z-10 container mx-auto p-6 md:p-8 lg:p-12">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+                    <div>
+                        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm">
+                            Automate AI
+                        </h1>
+                        <p className="text-lg text-muted-foreground mt-2 max-w-lg">
+                            Orchestrate your intelligent agents, visualize performance, and optimize logic flows in real-time.
+                        </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
+                        <Badge
+                            variant={isProcessing ? "success" : "secondary"}
+                            className={`text-sm px-4 py-1.5 h-9 backdrop-blur-md border ${isProcessing ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-white/5 border-white/10'}`}
+                        >
+                            <span className={`relative flex h-2 w-2 mr-2 ${isProcessing ? '' : 'hidden'}`}>
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            {isProcessing ? "System Operational" : "System Idle"}
+                        </Badge>
+                        <Button variant="premium" size="lg" onClick={toggleProcessing} className="w-full sm:w-auto">
+                            {isProcessing ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
+                            {isProcessing ? "Pause Automation" : "Start Automation"}
+                        </Button>
+                    </div>
+                </header>
 
-                {/* Main Content Area */}
-                <div className="col-span-1 md:col-span-3 space-y-6">
-
-                    {activeTab === "overview" && (
-                        <AnalyticsDashboard />
-                    )}
-
-                    {activeTab === "db" && (
-                        <LogsViewer />
-                    )}
-
-                    {activeTab === "files" && (
-                        <FileManager />
-                    )}
-
-                    {activeTab === "models" && (
-                        <Card>
-                            <CardHeader>
-                                <CardTitle>AI Service Configuration</CardTitle>
-                                <CardDescription>Manage API keys and model preferences</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Gemini API Key</label>
-                                    <div className="flex gap-2">
-                                        <Input type="password" placeholder="AIzam..." className="flex-1" />
-                                        <Button variant="secondary">Update</Button>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+                    {/* Navigation Sidebar */}
+                    <nav className="col-span-1 space-y-3">
+                        <p className="text-sm font-semibold text-muted-foreground mb-4 pl-2 tracking-wider uppercase">Menu</p>
+                        <div className="space-y-2">
+                            {[
+                                { id: 'overview', icon: BarChart3, label: 'Dashboard', desc: 'Real-time Analytics' },
+                                { id: 'logic', icon: Code, label: 'Logic Editor', desc: 'Flow Builder' },
+                                { id: 'files', icon: Files, label: 'File Manager', desc: 'Assets & Data' },
+                                { id: 'models', icon: Bot, label: 'AI Models', desc: 'LLM Configuration' },
+                                { id: 'db', icon: Database, label: 'Data & Logs', desc: 'System Records' },
+                            ].map((item) => (
+                                <button
+                                    key={item.id}
+                                    onClick={() => setActiveTab(item.id)}
+                                    className={`w-full text-left group relative flex items-center gap-4 p-4 rounded-xl transition-all duration-300 border ${activeTab === item.id
+                                            ? 'bg-primary/10 border-primary/20 shadow-lg shadow-primary/10'
+                                            : 'bg-card/30 border-transparent hover:bg-card/50 hover:border-white/5'
+                                        }`}
+                                >
+                                    <div className={`p-2 rounded-lg transition-colors ${activeTab === item.id ? 'bg-primary text-white' : 'bg-white/5 text-muted-foreground group-hover:text-primary'}`}>
+                                        <item.icon className="h-5 w-5" />
                                     </div>
-                                </div>
-                                <div className="grid gap-2">
-                                    <label className="text-sm font-medium">Mistral/OpenRouter Key</label>
-                                    <div className="flex gap-2">
-                                        <Input type="password" placeholder="sk-..." className="flex-1" />
-                                        <Button variant="secondary">Update</Button>
+                                    <div>
+                                        <div className={`font-semibold transition-colors ${activeTab === item.id ? 'text-foreground' : 'text-muted-foreground group-hover:text-foreground'}`}>
+                                            {item.label}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground/60">{item.desc}</div>
                                     </div>
-                                </div>
-                                <div className="flex items-center gap-4 pt-4">
-                                    <Button>Save Configuration</Button>
-                                    <Button variant="ghost">Test Connections</Button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
 
-                    {activeTab === "logic" && (
-                        <Card className="h-full">
-                            <CardHeader>
-                                <CardTitle>Logic Flow Editor</CardTitle>
-                                <CardDescription>Drag and drop nodes to change processing logic</CardDescription>
-                            </CardHeader>
-                            <CardContent className="min-h-[500px]">
-                                <LogicEditor />
-                            </CardContent>
-                        </Card>
-                    )}
+                                    {activeTab === item.id && (
+                                        <motion.div
+                                            layoutId="active-pill"
+                                            className="absolute left-0 w-1 h-8 bg-primary rounded-r-full"
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            transition={{ duration: 0.3 }}
+                                        />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    </nav>
 
+                    {/* Main Content Area */}
+                    <main className="col-span-1 md:col-span-3 space-y-6">
+                        <motion.div
+                            key={activeTab}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                            className="h-full"
+                        >
+                            {activeTab === "overview" && <AnalyticsDashboard />}
+                            {activeTab === "db" && <LogsViewer />}
+                            {activeTab === "files" && <FileManager />}
 
+                            {activeTab === "models" && (
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>AI Service Configuration</CardTitle>
+                                        <CardDescription>Manage API keys and model preferences</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="space-y-6">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-muted-foreground">Gemini API Key</label>
+                                            <div className="flex gap-3">
+                                                <Input type="password" placeholder="AIzam..." className="flex-1 bg-background/50" />
+                                                <Button variant="secondary">Update</Button>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium text-muted-foreground">Mistral/OpenRouter Key</label>
+                                            <div className="flex gap-3">
+                                                <Input type="password" placeholder="sk-..." className="flex-1 bg-background/50" />
+                                                <Button variant="secondary">Update</Button>
+                                            </div>
+                                        </div>
+                                        <div className="pt-4 flex items-center gap-4">
+                                            <Button variant="default">Save Configuration</Button>
+                                            <Button variant="ghost">Test Connections</Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            )}
+
+                            {activeTab === "logic" && (
+                                <Card className="h-full border-none shadow-none bg-transparent">
+                                    <CardHeader className="px-0 pt-0">
+                                        <CardTitle className="text-2xl">Logic Flow Editor</CardTitle>
+                                        <CardDescription>Drag and drop nodes to design your automation workflow.</CardDescription>
+                                    </CardHeader>
+                                    <CardContent className="p-0 h-[600px] rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
+                                        <LogicEditor />
+                                    </CardContent>
+                                </Card>
+                            )}
+                        </motion.div>
+                    </main>
                 </div>
             </div>
         </div>
