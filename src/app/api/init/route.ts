@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { DEFAULT_CONFIG } from '@/lib/actions';
+import { DEFAULT_CONFIG } from '@/lib/config-defaults';
 
 // POST - Initialize default configuration
 export async function POST() {
