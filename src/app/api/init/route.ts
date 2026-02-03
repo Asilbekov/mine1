@@ -1,61 +1,87 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { DEFAULT_CONFIG } from '@/lib/config-defaults';
+import { DEFAULT_CONFIG, DEFAULT_SESSION_COOKIES, DEFAULT_API_KEYS } from '@/lib/config-defaults';
 
-// POST - Initialize default configuration
+// POST - Initialize default configuration, cookies, and API keys
 export async function POST() {
     try {
-        const existingCount = await prisma.projectConfig.count();
+        const results = {
+            config: { created: 0, skipped: 0 },
+            cookies: { created: 0, skipped: 0 },
+            keys: { created: 0, skipped: 0 },
+        };
 
-        if (existingCount === 0) {
-            const configs = Object.entries(DEFAULT_CONFIG).map(([key, config]) => ({
-                key,
-                value: config.value,
-                type: config.type,
-                category: config.category,
-                label: config.label,
-                description: (config as any).description || null,
-            }));
+        // 1. Initialize ProjectConfig
+        for (const [key, config] of Object.entries(DEFAULT_CONFIG)) {
+            const existing = await prisma.projectConfig.findUnique({ where: { key } });
+            if (!existing) {
+                await prisma.projectConfig.create({
+                    data: {
+                        key,
+                        value: config.value,
+                        type: config.type,
+                        category: config.category,
+                        label: config.label,
+                        description: config.description || null,
+                    }
+                });
+                results.config.created++;
+            } else {
+                results.config.skipped++;
+            }
+        }
 
-            await prisma.projectConfig.createMany({ data: configs });
-
-            // Also add default Gemini API keys
-            const defaultGeminiKeys = [
-                { service: 'gemini', key: 'AIzaSyBaUmjiYmm3KGj_T8__ECnebI7dj6JuA8s', label: 'Gemini Key #1' },
-                { service: 'gemini', key: 'AIzaSyAY3Zs8ntokqZSuRHcfr7ZR4_bzD0FRCOs', label: 'Gemini Key #2' },
-            ];
-
-            await prisma.apiKey.createMany({ data: defaultGeminiKeys });
-
-            // Add default session cookies
-            const defaultCookies = [
-                { name: 'smart_top', value: '1' },
-                { name: 'TICKET_SESSION_ID', value: '5CEB44E46FD740E781DE500004620BD9' },
-                { name: 'bearer_token', value: 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJNeXNvbGlxLWF1dGhvcml6YXRpb24iLCJzdWIiOiJlNGU0MDFiYjlhYjVmZjg5MDE5YjAyOGVhMDcwNTcwZSIsImp0aSI6ImU0ZTQwMWJiOWFiNWZmODkwMTliMDI4ZWEwNzA1NzBlIiwiZXhwIjo0MTMyMDI5NjYwfQ.cpgI59iiKSi-Y-SIWI87s3bc1S7NaI1KDZqbUgJPMLU' },
-            ];
-
-            await prisma.sessionCookie.createMany({
-                data: defaultCookies.map(c => ({ ...c, isActive: true }))
+        // 2. Initialize Session Cookies
+        for (const cookie of DEFAULT_SESSION_COOKIES) {
+            const existing = await prisma.sessionCookie.findFirst({
+                where: { name: cookie.name }
             });
+            if (!existing) {
+                await prisma.sessionCookie.create({
+                    data: {
+                        name: cookie.name,
+                        value: cookie.value,
+                        isActive: true,
+                    }
+                });
+                results.cookies.created++;
+            } else {
+                results.cookies.skipped++;
+            }
+        }
 
-            return NextResponse.json({
-                success: true,
-                message: 'Default configuration initialized',
-                counts: {
-                    configs: configs.length,
-                    apiKeys: defaultGeminiKeys.length,
-                    cookies: defaultCookies.length
-                }
+        // 3. Initialize API Keys
+        for (const keyData of DEFAULT_API_KEYS) {
+            const existing = await prisma.apiKey.findFirst({
+                where: { key: keyData.key }
             });
+            if (!existing) {
+                await prisma.apiKey.create({
+                    data: {
+                        service: keyData.service,
+                        key: keyData.key,
+                        label: keyData.label,
+                        isActive: keyData.isActive,
+                        isSuspended: false,
+                    }
+                });
+                results.keys.created++;
+            } else {
+                results.keys.skipped++;
+            }
         }
 
         return NextResponse.json({
             success: true,
-            message: 'Configuration already exists',
-            existingCount
+            message: 'Database initialized with defaults from config.py',
+            results
         });
+
     } catch (error) {
-        console.error('Error initializing config:', error);
-        return NextResponse.json({ success: false, error: 'Failed to initialize config' }, { status: 500 });
+        console.error('Init error:', error);
+        return NextResponse.json({
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     }
 }

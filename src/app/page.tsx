@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -9,6 +9,7 @@ import { FileManager } from "@/components/FileManager";
 import { LogsViewer } from "@/components/LogsViewer";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { CookieHelper } from "@/components/CookieHelper";
 import {
     Activity,
     Bot,
@@ -16,6 +17,7 @@ import {
     Cpu,
     Play,
     Pause,
+    Square,
     Save,
     Database,
     Code,
@@ -23,15 +25,209 @@ import {
     AlertCircle,
     Files,
     BarChart3,
-    Settings2
+    Settings2,
+    Cookie,
+    RefreshCw,
+    Loader2,
+    Timer,
+    Zap,
+    TrendingUp,
+    Clock,
+    AlertTriangle,
+    XCircle
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+type AutomationStatus = 'idle' | 'running' | 'paused' | 'error' | 'session_expired';
+
+type AutomationStats = {
+    pending: number;
+    processing: number;
+    completed: number;
+    failed: number;
+    total: number;
+};
 
 export default function Dashboard() {
-    const [isProcessing, setIsProcessing] = useState(false);
+    const [automationStatus, setAutomationStatus] = useState<AutomationStatus>('idle');
     const [activeTab, setActiveTab] = useState("overview");
+    const [stats, setStats] = useState<AutomationStats>({ pending: 0, processing: 0, completed: 0, failed: 0, total: 0 });
+    const [loopCount, setLoopCount] = useState(0);
+    const [lastRunTime, setLastRunTime] = useState<Date | null>(null);
+    const [isInitialized, setIsInitialized] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const loopRef = useRef<NodeJS.Timeout | null>(null);
+    const isRunningRef = useRef(false);
 
-    const toggleProcessing = () => setIsProcessing(!isProcessing);
+    // Fetch current stats
+    const fetchStats = useCallback(async () => {
+        try {
+            const response = await fetch('/api/stats');
+            const data = await response.json();
+            if (data.success && data.data) {
+                setStats({
+                    pending: data.data.pending || 0,
+                    processing: data.data.processing || 0,
+                    completed: data.data.completed || 0,
+                    failed: data.data.failed || 0,
+                    total: data.data.total || 0,
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching stats:', error);
+        }
+    }, []);
+
+    // Initialize database with defaults
+    const initializeDatabase = async () => {
+        try {
+            const response = await fetch('/api/init', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                setIsInitialized(true);
+                fetchStats();
+            }
+        } catch (error) {
+            console.error('Init error:', error);
+        }
+    };
+
+    // Parse Excel and create check records  
+    const parseExcel = async () => {
+        try {
+            const response = await fetch('/api/py/parse_excel', { method: 'POST' });
+            const data = await response.json();
+            if (data.success) {
+                fetchStats();
+                return data;
+            }
+            return null;
+        } catch (error) {
+            console.error('Parse error:', error);
+            return null;
+        }
+    };
+
+    // Run a single automation batch
+    const runBatch = async (): Promise<boolean> => {
+        try {
+            const response = await fetch('/api/py/automation', { method: 'POST' });
+            const data = await response.json();
+
+            setLastRunTime(new Date());
+            fetchStats();
+
+            if (data.success) {
+                if (data.session_expired) {
+                    setAutomationStatus('session_expired');
+                    setError('Session expired - please update cookies');
+                    return false;
+                }
+                setLoopCount(prev => prev + 1);
+                return true;
+            } else {
+                setError(data.error || 'Batch failed');
+                return false;
+            }
+        } catch (error) {
+            console.error('Automation error:', error);
+            setError(String(error));
+            return false;
+        }
+    };
+
+    // Continuous automation loop
+    const startAutomation = async () => {
+        setAutomationStatus('running');
+        setError(null);
+        isRunningRef.current = true;
+
+        // First, parse Excel if needed
+        if (stats.total === 0) {
+            await parseExcel();
+        }
+
+        // Run loop
+        const runLoop = async () => {
+            if (!isRunningRef.current) return;
+
+            const success = await runBatch();
+
+            if (!success || !isRunningRef.current) {
+                if (isRunningRef.current && automationStatus !== 'session_expired') {
+                    setAutomationStatus('error');
+                }
+                return;
+            }
+
+            // Check if there are more pending
+            await fetchStats();
+
+            if (stats.pending > 0 && isRunningRef.current) {
+                // Continue with delay (5 seconds between batches)
+                loopRef.current = setTimeout(runLoop, 5000);
+            } else if (stats.pending === 0) {
+                setAutomationStatus('idle');
+                isRunningRef.current = false;
+            }
+        };
+
+        runLoop();
+    };
+
+    const pauseAutomation = () => {
+        isRunningRef.current = false;
+        if (loopRef.current) {
+            clearTimeout(loopRef.current);
+            loopRef.current = null;
+        }
+        setAutomationStatus('paused');
+    };
+
+    const stopAutomation = () => {
+        isRunningRef.current = false;
+        if (loopRef.current) {
+            clearTimeout(loopRef.current);
+            loopRef.current = null;
+        }
+        setAutomationStatus('idle');
+        setLoopCount(0);
+    };
+
+    const resumeAutomation = () => {
+        startAutomation();
+    };
+
+    // Fetch stats on mount and periodically
+    useEffect(() => {
+        fetchStats();
+        const interval = setInterval(fetchStats, 10000);
+        return () => clearInterval(interval);
+    }, [fetchStats]);
+
+    // Cleanup on unmount
+    useEffect(() => {
+        return () => {
+            if (loopRef.current) {
+                clearTimeout(loopRef.current);
+            }
+        };
+    }, []);
+
+    const getStatusBadge = () => {
+        switch (automationStatus) {
+            case 'running':
+                return <Badge className="bg-green-500/10 text-green-400 border-green-500/20"><Activity className="h-3 w-3 mr-1 animate-pulse" /> Running</Badge>;
+            case 'paused':
+                return <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20"><Pause className="h-3 w-3 mr-1" /> Paused</Badge>;
+            case 'error':
+                return <Badge className="bg-red-500/10 text-red-400 border-red-500/20"><XCircle className="h-3 w-3 mr-1" /> Error</Badge>;
+            case 'session_expired':
+                return <Badge className="bg-orange-500/10 text-orange-400 border-orange-500/20"><AlertTriangle className="h-3 w-3 mr-1" /> Session Expired</Badge>;
+            default:
+                return <Badge className="bg-white/5 text-muted-foreground border-white/10"><Timer className="h-3 w-3 mr-1" /> Idle</Badge>;
+        }
+    };
 
     return (
         <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/30">
@@ -42,32 +238,96 @@ export default function Dashboard() {
 
             {/* Content Container */}
             <div className="relative z-10 container mx-auto p-6 md:p-8 lg:p-12">
-                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+                <header className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
                     <div>
-                        <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm">
+                        <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-white via-white to-white/50 bg-clip-text text-transparent drop-shadow-sm">
                             Automate AI
                         </h1>
                         <p className="text-lg text-muted-foreground mt-2 max-w-lg">
-                            Orchestrate your intelligent agents, visualize performance, and optimize logic flows in real-time.
+                            Orchestrate check automation with Gemini CAPTCHA solving
                         </p>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
-                        <Badge
-                            variant={isProcessing ? "success" : "secondary"}
-                            className={`text-sm px-4 py-1.5 h-9 backdrop-blur-md border ${isProcessing ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-white/5 border-white/10'}`}
-                        >
-                            <span className={`relative flex h-2 w-2 mr-2 ${isProcessing ? '' : 'hidden'}`}>
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                            </span>
-                            {isProcessing ? "System Operational" : "System Idle"}
-                        </Badge>
-                        <Button variant="premium" size="lg" onClick={toggleProcessing} className="w-full sm:w-auto">
-                            {isProcessing ? <Pause className="mr-2 h-5 w-5" /> : <Play className="mr-2 h-5 w-5" />}
-                            {isProcessing ? "Pause Automation" : "Start Automation"}
-                        </Button>
+
+                    {/* Automation Control Panel */}
+                    <div className="flex flex-col gap-3 w-full md:w-auto">
+                        <div className="flex items-center gap-3 flex-wrap">
+                            {getStatusBadge()}
+                            {loopCount > 0 && (
+                                <Badge variant="secondary" className="font-mono">
+                                    <RefreshCw className="h-3 w-3 mr-1" /> Loop #{loopCount}
+                                </Badge>
+                            )}
+                            {lastRunTime && (
+                                <Badge variant="outline" className="text-xs">
+                                    <Clock className="h-3 w-3 mr-1" />
+                                    {lastRunTime.toLocaleTimeString()}
+                                </Badge>
+                            )}
+                        </div>
+
+                        <div className="flex gap-2">
+                            {automationStatus === 'idle' && (
+                                <Button variant="premium" size="lg" onClick={startAutomation} className="flex-1">
+                                    <Play className="h-5 w-5 mr-2" />
+                                    Start Automation
+                                </Button>
+                            )}
+                            {automationStatus === 'running' && (
+                                <>
+                                    <Button variant="secondary" size="lg" onClick={pauseAutomation} className="flex-1">
+                                        <Pause className="h-5 w-5 mr-2" />
+                                        Pause
+                                    </Button>
+                                    <Button variant="destructive" size="lg" onClick={stopAutomation}>
+                                        <Square className="h-5 w-5" />
+                                    </Button>
+                                </>
+                            )}
+                            {automationStatus === 'paused' && (
+                                <>
+                                    <Button variant="premium" size="lg" onClick={resumeAutomation} className="flex-1">
+                                        <Play className="h-5 w-5 mr-2" />
+                                        Resume
+                                    </Button>
+                                    <Button variant="destructive" size="lg" onClick={stopAutomation}>
+                                        <Square className="h-5 w-5" />
+                                    </Button>
+                                </>
+                            )}
+                            {(automationStatus === 'error' || automationStatus === 'session_expired') && (
+                                <Button variant="premium" size="lg" onClick={startAutomation} className="flex-1">
+                                    <RefreshCw className="h-5 w-5 mr-2" />
+                                    Retry
+                                </Button>
+                            )}
+                        </div>
+
+                        {error && (
+                            <div className="text-xs text-red-400 bg-red-500/10 px-3 py-2 rounded-lg">
+                                {error}
+                            </div>
+                        )}
                     </div>
                 </header>
+
+                {/* Quick Stats Bar */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                    {[
+                        { label: 'Total', value: stats.total, icon: Database, color: 'text-blue-400' },
+                        { label: 'Pending', value: stats.pending, icon: Timer, color: 'text-yellow-400' },
+                        { label: 'Processing', value: stats.processing, icon: Loader2, color: 'text-purple-400' },
+                        { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'text-green-400' },
+                        { label: 'Failed', value: stats.failed, icon: XCircle, color: 'text-red-400' },
+                    ].map((stat) => (
+                        <div key={stat.label} className="bg-card/50 backdrop-blur-sm border border-white/10 rounded-xl p-4">
+                            <div className="flex items-center gap-2 mb-1">
+                                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                                <span className="text-xs text-muted-foreground">{stat.label}</span>
+                            </div>
+                            <div className="text-2xl font-bold">{stat.value.toLocaleString()}</div>
+                        </div>
+                    ))}
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                     {/* Navigation Sidebar */}
@@ -76,11 +336,11 @@ export default function Dashboard() {
                         <div className="space-y-2">
                             {[
                                 { id: 'overview', icon: BarChart3, label: 'Dashboard', desc: 'Real-time Analytics' },
-                                { id: 'logic', icon: Code, label: 'Logic Editor', desc: 'Flow Builder' },
-                                { id: 'files', icon: Files, label: 'File Manager', desc: 'Assets & Data' },
+                                { id: 'logic', icon: Code, label: 'Pipeline', desc: 'Automation Flow' },
+                                { id: 'files', icon: Files, label: 'File Manager', desc: 'Excel & ZIP Files' },
+                                { id: 'cookies', icon: Cookie, label: 'Session', desc: 'Login Cookies' },
                                 { id: 'settings', icon: Settings2, label: 'Settings', desc: 'Full Configuration' },
-                                { id: 'models', icon: Bot, label: 'AI Models', desc: 'LLM Configuration' },
-                                { id: 'db', icon: Database, label: 'Data & Logs', desc: 'System Records' },
+                                { id: 'db', icon: Database, label: 'Logs', desc: 'System Records' },
                             ].map((item) => (
                                 <button
                                     key={item.id}
@@ -112,6 +372,20 @@ export default function Dashboard() {
                                 </button>
                             ))}
                         </div>
+
+                        {/* Quick Actions */}
+                        <div className="pt-6 space-y-2">
+                            <p className="text-sm font-semibold text-muted-foreground mb-2 pl-2 tracking-wider uppercase">Quick Actions</p>
+                            <Button variant="outline" size="sm" className="w-full justify-start" onClick={initializeDatabase}>
+                                <Zap className="h-4 w-4 mr-2" /> Initialize Defaults
+                            </Button>
+                            <Button variant="outline" size="sm" className="w-full justify-start" onClick={parseExcel}>
+                                <Files className="h-4 w-4 mr-2" /> Parse Excel File
+                            </Button>
+                            <Button variant="outline" size="sm" className="w-full justify-start" onClick={fetchStats}>
+                                <RefreshCw className="h-4 w-4 mr-2" /> Refresh Stats
+                            </Button>
+                        </div>
                     </nav>
 
                     {/* Main Content Area */}
@@ -127,37 +401,13 @@ export default function Dashboard() {
                             {activeTab === "db" && <LogsViewer />}
                             {activeTab === "files" && <FileManager />}
                             {activeTab === "settings" && <SettingsPanel />}
-
-                            {activeTab === "models" && (
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>AI Service Configuration</CardTitle>
-                                        <CardDescription>
-                                            Quick access to API keys. For full configuration, use the Settings tab.
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent className="space-y-6">
-                                        <div className="rounded-lg bg-blue-500/10 p-4 border border-blue-500/20 flex gap-3 text-blue-500 text-sm">
-                                            <AlertCircle className="h-5 w-5 shrink-0" />
-                                            <p>
-                                                API keys and session configuration have been moved to the <strong>Settings</strong> tab
-                                                for a more comprehensive management experience. Click on Settings in the sidebar to
-                                                manage all configuration including API keys, session cookies, and system parameters.
-                                            </p>
-                                        </div>
-                                        <Button onClick={() => setActiveTab('settings')} className="w-full">
-                                            <Settings2 className="mr-2 h-4 w-4" />
-                                            Open Full Settings Panel
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            )}
+                            {activeTab === "cookies" && <CookieHelper />}
 
                             {activeTab === "logic" && (
                                 <Card className="h-full border-none shadow-none bg-transparent">
                                     <CardHeader className="px-0 pt-0">
-                                        <CardTitle className="text-2xl">Logic Flow Editor</CardTitle>
-                                        <CardDescription>Drag and drop nodes to design your automation workflow. Changes are saved to the database.</CardDescription>
+                                        <CardTitle className="text-2xl">Automation Pipeline</CardTitle>
+                                        <CardDescription>Configure the automation workflow - all settings from config.py</CardDescription>
                                     </CardHeader>
                                     <CardContent className="p-0 h-[600px] rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
                                         <LogicEditor />

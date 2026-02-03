@@ -11,8 +11,12 @@
     ],
     "routes": [
         {
-            "src": "/api/py/(.*)",
-            "dest": "/api/$1"
+            "src": "/api/py/automation",
+            "dest": "/api/automation.py"
+        },
+        {
+            "src": "/api/py/parse_excel",
+            "dest": "/api/parse_excel.py"
         }
     ],
     "env": {
