@@ -1,0 +1,30 @@
+Step 1: Loading all check numbers from Excel files...
+
+  Асилбекова_Сентябрь_тахрирлаш_42930.xlsx: 42921 checks
+  Асилбекова_Август_тахрирлаш_48606_та.xlsx: 48605 checks
+  Асилбекова Июнь тахрирлаш 20303 та.xlsx: 20303 checks
+  Асилбекова Июль тахрирлаш 46430 та.xlsx: 46097 checks
+
+Total unique checks loaded: 157809
+
+Step 2: Collecting all completed checks from progress files...
+
+  progress_Асилбекова_Сентябрь_тахрирлаш_42930.json: 2771 checks
+  progress_Асилбекова_Сентябрь_тахрирлаш_42930.db: 2825 checks
+  progress_Асилбекова_Август_тахрирлаш_48606_та.db: 0 checks
+  progress_Асилбекова Июнь тахрирлаш 20303 та.json: 2817 checks
+  progress_Асилбекова Июнь тахрирлаш 20303 та.db: 0 checks
+  progress_Асилбекова Июль тахрирлаш 46430 та.json: 2825 checks
+  progress_Асилбекова Июль тахрирлаш 46430 та.db: 0 checks
+
+Total completed checks found: 2825
+
+Step 3: Redistributing checks to correct files...
+
+  Асилбекова_Сентябрь_тахрирлаш_42930.xlsx: 1884 checks written
+  Асилбекова_Август_тахрирлаш_48606_та.xlsx: 292 checks written
+  Асилбекова Июнь тахрирлаш 20303 та.xlsx: 311 checks written
+  Асилбекова Июль тахрирлаш 46430 та.xlsx: 338 checks written
+
+Done! Old files backed up with .backup extension
+You can now restart master_controller.py

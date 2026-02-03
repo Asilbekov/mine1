@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Архитектура Системы - Понятная Схема</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.26.0/cytoscape.min.js"></script>
+    <script src="https://unpkg.com/dagre@0.8.5/dist/dagre.js"></script>
+    <script src="https://unpkg.com/cytoscape-dagre@2.5.0/cytoscape-dagre.js"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #header {
+            background: #252526;
+            padding: 15px 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+        }
+
+        #header h1 {
+            font-size: 18px;
+            color: #4fc1ff;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+
+        #controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        #search-box {
+            padding: 8px 12px;
+            border: 1px solid #3e3e42;
+            border-radius: 4px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            font-size: 13px;
+            width: 220px;
+            transition: border-color 0.2s;
+        }
+
+        #search-box:focus {
+            border-color: #4fc1ff;
+            outline: none;
+        }
+
+        .btn {
+            background: #3e3e42;
+            color: #e0e0e0;
+            border: 1px solid #454545;
+            padding: 6px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #4e4e52;
+            border-color: #555;
+        }
+
+        .btn-primary {
+            background: #0e639c;
+            border-color: #1177bb;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1177bb;
+        }
+
+        #main-container {
+            flex: 1;
+            display: flex;
+            position: relative;
+            height: 0;
+            min-height: 0;
+        }
+
+        #cy {
+            flex: 1;
+            background: #1e1e1e;
+            background-image:
+                radial-gradient(#333 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        #sidebar {
+            width: 480px;
+            background: #252526;
+            border-left: 1px solid #333;
+            overflow-y: auto;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.3);
+            height: 100%;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .sidebar-content {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        h2 {
+            font-size: 18px;
+            color: #dcdcaa;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        h3 {
+            font-size: 13px;
+            color: #9cdcfe;
+            margin: 15px 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        p {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #cccccc;
+            margin: 8px 0;
+        }
+
+        /* Junior Section Styling */
+        .junior-card {
+            background: rgba(78, 201, 176, 0.08);
+            border-left: 4px solid #4ec9b0;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 25px;
+        }
+
+        .junior-title {
+            color: #4ec9b0;
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .junior-section {
+            margin-bottom: 12px;
+        }
+
+        .junior-label {
+            font-size: 11px;
+            color: #888;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+            display: block;
+        }
+
+        .junior-text {
+            color: #e0e0e0;
+            font-size: 14px;
+        }
+
+        .analogy-text {
+            color: #ce9178;
+            font-style: italic;
+            border-left: 2px solid #ce9178;
+            padding-left: 10px;
+            margin-top: 5px;
+        }
+
+        .code-block {
+            background: #111;
+            padding: 12px;
+            border-radius: 6px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 12px;
+            color: #9cdcfe;
+            border: 1px solid #333;
+            white-space: pre-wrap;
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+
+        .metric-card {
+            background: #333;
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #4fc1ff;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #aaa;
+            margin-top: 6px;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            margin-right: 6px;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        .tag-tech {
+            background: #569cd6;
+            color: white;
+        }
+
+        .tag-logic {
+            background: #c586c0;
+            color: white;
+        }
+
+        .tag-data {
+            background: #ce9178;
+            color: black;
+        }
+
+        #legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(37, 37, 38, 0.95);
+            padding: 15px;
+            border-radius: 6px;
+            border: 1px solid #454545;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            font-size: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 6px 0;
+        }
+
+        .legend-box {
+            width: 14px;
+            height: 14px;
+            margin-right: 10px;
+            border-radius: 3px;
+        }
+
+        #zoom-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            z-index: 100;
+        }
+
+        .zoom-btn {
+            background: #252526;
+            border: 1px solid #454545;
+            color: #ccc;
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            background: #3e3e42;
+            color: white;
+        }
+
+        .connection-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .connection-list li {
+            padding: 10px;
+            background: #2d2d2d;
+            margin: 6px 0;
+            border-radius: 4px;
+            font-size: 13px;
+            border-left: 3px solid #555;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #1e1e1e;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+    </style>
+    <link rel="stylesheet" href="/index.css">
+</head>
+
+<body>
+
+    <div id="header">
+        <h1>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            Интерактивная Карта Кода
+        </h1>
+        <div id="controls">
+            <input type="text" id="search-box" placeholder="🔍 Найти элемент..." />
+            <button class="btn" onclick="resetView()">Сброс</button>
+            <button class="btn" onclick="fitView()">Вписать</button>
+            <button class="btn btn-primary" onclick="showCriticalPath()">⚡ Показать Путь</button>
+        </div>
+    </div>
+
+    <div id="main-container">
+        <div id="cy"></div>
+
+        <div id="zoom-controls">
+            <button class="zoom-btn" onclick="zoomIn()" title="Приблизить">+</button>
+            <button class="zoom-btn" onclick="zoomOut()" title="Отдалить">−</button>
+            <button class="zoom-btn" onclick="resetView()" title="Сброс масштаба">⟲</button>
+        </div>
+
+        <div id="legend">
+            <div style="font-weight:bold; margin-bottom:8px; color:#ddd;">Условные Обозначения</div>
+            <div class="legend-item">
+                <div class="legend-box" style="background:#4ec9b0;"></div>Функция (Действие)
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background:#ce9178;"></div>Данные (Файлы)
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="background:#569cd6;"></div>API (Внешний Мир)
+            </div>
+            <div class="legend-item">
+                <div class="legend-box" style="border:2px dashed #6a9955;"></div>Группы / Папки
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <!-- Default View -->
+            <div class="sidebar-section" id="default-info">
+                <div class="sidebar-header">
+                    <h2>📊 Статистика Работы</h2>
+                </div>
+                <div class="sidebar-content">
+                    <p>Это схема работы программы автоматизации чеков. Выберите любой элемент на карте, чтобы узнать,
+                        как он работает и зачем нужен.</p>
+
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <div class="metric-value">14,626</div>
+                            <div class="metric-label">Чеков в очереди</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">275</div>
+                            <div class="metric-label">Готово</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">12 шт</div>
+                            <div class="metric-label">Размер пакета</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">4 сек</div>
+                            <div class="metric-label">Скорость ИИ</div>
+                        </div>
+                    </div>
+
+                    <h3>Как пользоваться картой?</h3>
+                    <ul style="margin-left:20px; color:#bbb; font-size:13px; line-height:1.8;">
+                        <li>Нажмите на <strong>Узел</strong>, чтобы понять, что делает эта часть кода.</li>
+                        <li>Нажмите на <strong>Стрелку</strong>, чтобы увидеть, какие данные передаются.</li>
+                        <li>Используйте поиск сверху для нахождения файлов или функций.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Node Details View -->
+            <div class="sidebar-section" id="node-details" style="display:none;">
+                <div class="sidebar-header">
+                    <h2 id="node-name">Название Узла</h2>
+                    <div id="node-tags"></div>
+                </div>
+
+                <div class="sidebar-content">
+                    <!-- Junior Friendly Section -->
+                    <div class="junior-card">
+                        <div class="junior-title">
+                            <span style="font-size:16px;">🎓</span> Для Новичка (Junior)
+                        </div>
+                        <div class="junior-section">
+                            <span class="junior-label">Простыми словами:</span>
+                            <div id="node-junior-text" class="junior-text"></div>
+                        </div>
+                        <div class="junior-section" id="node-analogy-container">
+                            <span class="junior-label">Пример из жизни:</span>
+                            <div id="node-analogy-text" class="analogy-text"></div>
+                        </div>
+                    </div>
+
+                    <h3>⚙️ Техническое описание</h3>
+                    <p id="node-description"></p>
+
+                    <h3>💻 Код / Структура</h3>
+                    <div id="node-code" class="code-block"></div>
+
+                    <h3>🔗 Связи</h3>
+                    <ul id="node-connections" class="connection-list"></ul>
+                </div>
+            </div>
+
+            <!-- Edge Details View -->
+            <div class="sidebar-section" id="edge-details" style="display:none;">
+                <div class="sidebar-header">
+                    <h2 id="edge-name">Связь</h2>
+                </div>
+
+                <div class="sidebar-content">
+                    <!-- Junior Friendly Section for Edges -->
+                    <div class="junior-card">
+                        <div class="junior-title">
+                            <span style="font-size:16px;">🎓</span> Для Новичка (Junior)
+                        </div>
+                        <div class="junior-section">
+                            <span class="junior-label">Зачем эта связь?</span>
+                            <div id="edge-junior-text" class="junior-text"></div>
+                        </div>
+                    </div>
+
+                    <h3>📦 Какие данные передаются?</h3>
+                    <div id="edge-payload" class="code-block"></div>
+
+                    <h3>⏱️ Как часто?</h3>
+                    <p id="edge-timing" style="color: #4ec9b0; font-weight:bold;"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var cy = cytoscape({
+            container: document.getElementById('cy'),
+
+            boxSelectionEnabled: false,
+            autounselectify: false,
+
+            style: [
+                {
+                    selector: 'node',
+                    style: {
+                        'content': 'data(label)',
+                        'text-valign': 'center',
+                        'text-halign': 'center',
+                        'color': '#fff',
+                        'text-outline-width': 2,
+                        'text-outline-color': '#1e1e1e',
+                        'background-color': '#333',
+                        'font-size': '12px',
+                        'font-weight': '600',
+                        'width': 'label',
+                        'height': 'label',
+                        'padding': '14px',
+                        'shape': 'round-rectangle',
+                        'border-width': 2,
+                        'border-color': '#555',
+                        'text-wrap': 'wrap'
+                    }
+                },
+                {
+                    selector: ':parent',
+                    style: {
+                        'text-valign': 'top',
+                        'text-halign': 'center',
+                        'background-opacity': 0.1,
+                        'background-color': '#fff',
+                        'border-color': '#666',
+                        'border-width': 1,
+                        'border-style': 'dashed',
+                        'content': 'data(label)',
+                        'font-size': '14px',
+                        'color': '#888',
+                        'padding': '30px',
+                        'text-margin-y': -10
+                    }
+                },
+                // Types
+                {
+                    selector: 'node[type="function"]',
+                    style: {
+                        'background-color': '#1e1e1e',
+                        'border-color': '#4ec9b0',
+                        'color': '#4ec9b0',
+                        'text-outline-color': '#1e1e1e'
+                    }
+                },
+                {
+                    selector: 'node[type="data"]',
+                    style: {
+                        'background-color': '#1e1e1e',
+                        'border-color': '#ce9178',
+                        'color': '#ce9178',
+                        'shape': 'cut-rectangle'
+                    }
+                },
+                {
+                    selector: 'node[type="api"]',
+                    style: {
+                        'background-color': '#1e1e1e',
+                        'border-color': '#569cd6',
+                        'color': '#569cd6',
+                        'shape': 'diamond',
+                        'padding': '20px'
+                    }
+                },
+                {
+                    selector: 'edge',
+                    style: {
+                        'width': 2,
+                        'target-arrow-shape': 'triangle',
+                        'line-color': '#555',
+                        'target-arrow-color': '#555',
+                        'curve-style': 'bezier',
+                        'label': 'data(label)',
+                        'font-size': '10px',
+                        'color': '#aaa',
+                        'text-background-color': '#1e1e1e',
+                        'text-background-opacity': 1,
+                        'text-background-padding': '4px',
+                        'text-rotation': 'autorotate'
+                    }
+                },
+                {
+                    selector: '.highlighted',
+                    style: {
+                        'background-color': '#0e639c',
+                        'border-color': '#4fc1ff',
+                        'line-color': '#4fc1ff',
+                        'target-arrow-color': '#4fc1ff',
+                        'color': '#fff',
+                        'text-outline-color': '#0e639c',
+                        'z-index': 999
+                    }
+                },
+                {
+                    selector: '.dimmed',
+                    style: {
+                        'opacity': 0.1
+                    }
+                }
+            ],
+
+            elements: {
+                nodes: [
+                    // Groups (Containers)
+                    { data: { id: 'g_main', label: 'Главный Скрипт (automate_checks.py)' } },
+                    { data: { id: 'g_class', label: 'Робот-Исполнитель', parent: 'g_main' } },
+                    { data: { id: 'g_ai', label: 'AI Модуль Зрения' } },
+                    { data: { id: 'g_server', label: 'Сервер Налоговой' } },
+                    { data: { id: 'g_google', label: 'Google Cloud' } },
+                    { data: { id: 'g_files', label: 'Папка с Файлами' } },
+
+                    // Data Nodes
+                    {
+                        data: {
+                            id: 'f_excel',
+                            label: 'Excel Файл\\n(Список Задач)',
+                            parent: 'g_files',
+                            type: 'data',
+                            desc: 'Файл .xlsx, содержащий 14,626 строк с данными чеков. Загружается через openpyxl.',
+                            code: 'def load_checks_from_excel(self):\\n    wb = load_workbook(config.EXCEL_FILE)\\n    ws = wb.active\\n    # ...\\n    for row in ws.iter_rows(...):\\n        check_data = { "check_number": ... }\\n        checks.append(check_data)',
+                            junior: 'Это список всех дел, которые нужно сделать. Программа читает его построчно, чтобы знать, какие чеки обрабатывать.',
+                            analogy: 'Это толстая амбарная книга с заказами на столе менеджера.',
+                            input: 'Асилбекова...xlsx',
+                            output: 'List[Dict]'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'f_zip',
+                            label: 'ZIP Архив\\n(Скан Документов)',
+                            parent: 'g_files',
+                            type: 'data',
+                            desc: 'Бинарный контент ZIP-архива, загружаемый в память при старте.',
+                            code: 'if Path(config.ZIP_FILE).exists():\\n    with open(config.ZIP_FILE, "rb") as f:\\n        self.zip_file_content = f.read()',
+                            junior: 'Файл с документами. Он один и тот же для всех чеков. Программа один раз его запоминает и потом везде прикладывает.',
+                            analogy: 'Ксерокопия паспорта. Её нужно прикладывать к каждому заявлению, поэтому вы сделали много копий одной бумажки.',
+                            input: 'АСИЛБЕКОВА.zip',
+                            output: 'bytes'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'f_progress',
+                            label: 'Файл Прогресса\\n(Сделано)',
+                            parent: 'g_files',
+                            type: 'data',
+                            desc: 'JSON файл для отслеживания уже обработанных чеков, чтобы не повторять работу.',
+                            code: 'def load_progress(self):\\n    if Path(config.PROGRESS_FILE).exists():\\n        with open(config.PROGRESS_FILE, "r") as f:\\n            return set(json.load(f))',
+                            junior: 'Записная книжка, куда программа записывает номера готовых чеков.',
+                            analogy: 'Список, где мы ставим галочки "Выполнено".',
+                            input: 'progress.json',
+                            output: 'Set[str]'
+                        }
+                    },
+
+                    // Logic Nodes (Functions)
+                    {
+                        data: {
+                            id: 'fn_init',
+                            label: 'Настройка\\n(Init)',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Инициализация класса CheckAutomation: сессия, куки, OCR и файлы.',
+                            code: 'def __init__(self):\\n    self.session = requests.Session()\\n    self.session.headers.update(config.HEADERS)\\n    self.cookie_refresher = CookieRefresher(...)\\n    self.gemini_solver = GeminiSolver()',
+                            junior: 'Подготовка к работе. Программа "просыпается", надевает рабочую форму и раскладывает инструменты.',
+                            analogy: 'Водитель садится в машину, настраивает зеркала и заводит двигатель.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_run',
+                            label: 'Главный Конвейер\\n(Run)',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Основной цикл обработки. Разбивает список чеков на пакеты и запускает их обработку.',
+                            code: 'def run(self, limit=None):\\n    checks = self.load_checks_from_excel()\\n    # ...\\n    for i in range(0, len(checks), batch_size):\\n        chunk = checks[i:i + batch_size]\\n        self.process_batch(chunk)',
+                            junior: 'Главный начальник. Он берет общий список дел и выдает задания бригаде порциями.',
+                            analogy: 'Кнопка "ПУСК" на заводском конвейере.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_process',
+                            label: 'Обработчик Пакета\\n(Менеджер)',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Координирует обработку группы чеков: загрузка -> капча -> решение -> отправка.',
+                            code: 'def process_batch(self, checks_chunk):\\n    # 1. Upload files\\n    # 2. Get Captchas\\n    # 3. Solve with Gemini\\n    # 4. Submit all',
+                            junior: 'Бригадир. Он получает 12 заданий и следит, чтобы для каждого были выполнены все шаги.',
+                            analogy: 'Официант, который обслуживает столик из 12 человек.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_upload',
+                            label: 'Загрузчик\\nФайлов',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Отправляет ZIP-архив на сервер. Использует base64 кодирование.',
+                            code: 'def upload_file(self, check_number):\\n    payload = { "file": base64... }\\n    response = self.session.post(\\n        config.FILE_UPLOAD_URL, ...\\n    )\\n    return response.json().get("fileGuid")',
+                            junior: 'Функция-курьер. Бежит в налоговую, отдает документы и приносит номерок.',
+                            analogy: 'Сдача одежды в гардероб за номерок.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_captcha',
+                            label: 'Получатель\\nКапчи',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Запрашивает новую капчу у сервера.',
+                            code: 'def get_captcha(self):\\n    response = self.session.get(\\n        config.CAPTCHA_URL, ...\\n    )\\n    data = response.json()\\n    return data["guid"], data["captcha"]',
+                            junior: 'Спрашивает у сервера загадку (картинку).',
+                            analogy: 'Вахтер, выдающий пропуск только по паролю.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_gemini',
+                            label: 'Решатель Капчи\\n(Через ИИ)',
+                            parent: 'g_ai',
+                            type: 'function',
+                            desc: 'Отправляет пакет картинок в Google Gemini для распознавания.',
+                            code: 'solved_captchas = self.gemini_solver.solve_batch(images_b64)\\n# Внутри GeminiSolver:\\n# response = model.generate_content(...)',
+                            junior: 'Показывает картинки умному ИИ и просит прочитать цифры.',
+                            analogy: 'Звонок другу-отличнику за помощью.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_submit',
+                            label: 'Отправщик\\nЧека',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Отправляет финальный запрос на редактирование чека.',
+                            code: 'def submit_check_edit(self, ...):\\n    payload = { "captchaValue": ..., "attachedFile": ... }\\n    response = self.session.post(\\n        config.SUBMIT_URL, json=payload\\n    )',
+                            junior: 'Финальный шаг. Заполняет анкету и отдает в окошко.',
+                            analogy: 'Опускание готового письма в почтовый ящик.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_save',
+                            label: 'Сохраняльщик',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Сохраняет прогресс в JSON файл.',
+                            code: 'def save_progress(self):\\n    with open(config.PROGRESS_FILE, "w") as f:\\n        json.dump(list(self.progress), f)',
+                            junior: 'Секретарь, записывающий результат в журнал.',
+                            analogy: 'Галочка в списке дел.'
+                        }
+                    },
+
+                    // Session Refresh Nodes
+                    {
+                        data: {
+                            id: 'fn_detect401',
+                            label: 'Детектор 401\\n(Охранник)',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Перехватывает ошибки 401 Unauthorized.',
+                            code: 'except requests.exceptions.HTTPError as e:\\n    if e.response.status_code == 401:\\n        return "unauthorized"',
+                            junior: 'Охранник, замечающий просроченный пропуск.',
+                            analogy: 'Турникет, который не пускает.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_session_refresh',
+                            label: 'Обновлятель\\nСессии',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Координирует восстановление сессии.',
+                            code: 'def handle_session_expired(self):\\n    # Logic to restart Chrome and get cookies',
+                            junior: 'Менеджер, который решает проблему с пропуском.',
+                            analogy: 'Инструкция "Что делать, если забыл пропуск".'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_chrome_launcher',
+                            label: 'Запускатель\\nChrome',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Запускает скрипт START_CHROME_DEBUG.bat.',
+                            code: 'subprocess.Popen([str(bat_file)], shell=True)',
+                            junior: 'Робот, открывающий браузер.',
+                            analogy: 'Автоматическое открытие двери.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'user_login',
+                            label: 'Вход Пользователя\\n(Ручная Работа)',
+                            type: 'data',
+                            desc: 'Ожидание действий пользователя.',
+                            code: 'input("\\n👉 Press ENTER after you\'ve logged in: ")',
+                            junior: 'Ты сам вводишь пароль.',
+                            analogy: 'Личная подпись в журнале.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_cookie_extract',
+                            label: 'Извлекатель\\nCookies',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Запускает скрипт refresh_cookies.py.',
+                            code: 'subprocess.run([sys.executable, "refresh_cookies.py"])',
+                            junior: 'Шпион, копирующий пропуск.',
+                            analogy: 'Ксерокс для документов.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'fn_config_reload',
+                            label: 'Перезагрузка\\nConfig',
+                            parent: 'g_class',
+                            type: 'function',
+                            desc: 'Применяет новые настройки.',
+                            code: 'importlib.reload(config)\\nself.session.cookies.update(...)',
+                            junior: 'Обновление памяти программы.',
+                            analogy: 'Смена правил игры.'
+                        }
+                    },
+
+                    // API Endpoints
+                    {
+                        data: {
+                            id: 'api_upload',
+                            label: 'API Приема\\nФайлов',
+                            parent: 'g_server',
+                            type: 'api',
+                            desc: 'URL: /api/general-api/file/repository-set-file',
+                            code: 'config.FILE_UPLOAD_URL',
+                            junior: 'Окошко приема документов.',
+                            analogy: 'Почтовое отделение.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'api_captcha',
+                            label: 'API Выдачи\\nКапчи',
+                            parent: 'g_server',
+                            type: 'api',
+                            desc: 'URL: /api/cashregister-edit-api/home/get-captcha',
+                            code: 'config.CAPTCHA_URL',
+                            junior: 'Автомат с талончиками.',
+                            analogy: 'Будка охранника.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'api_submit',
+                            label: 'API Обработки\\nЧеков',
+                            parent: 'g_server',
+                            type: 'api',
+                            desc: 'URL: /api/cashregister-edit-api/check-edit/set-payment',
+                            code: 'config.SUBMIT_URL',
+                            junior: 'Главный кабинет инспектора.',
+                            analogy: 'Судья, выносящий решение.'
+                        }
+                    },
+                    {
+                        data: {
+                            id: 'api_google',
+                            label: 'Google Gemini\\nAPI',
+                            parent: 'g_google',
+                            type: 'api',
+                            desc: 'Model: gemini-2.0-flash',
+                            code: 'config.GEMINI_MODEL',
+                            junior: 'Мозг Google.',
+                            analogy: 'Энциклопедия.'
+                        }
+                    }
+                ],
+                edges: [
+                    // Init flow
+                    { data: { source: 'f_zip', target: 'fn_init', label: 'Чтение', junior: 'Загрузка файла в память.', type: 'data', code: 'self.zip_file_content = f.read()' } },
+                    { data: { source: 'f_progress', target: 'fn_init', label: 'Загрузка', junior: 'Чтение истории.', type: 'data', code: 'self.progress = self.load_progress()' } },
+                    { data: { source: 'fn_init', target: 'fn_run', label: 'Старт', junior: 'Переход к работе.', type: 'control', code: 'automation.run()' } },
+
+                    // Main loop
+                    { data: { source: 'f_excel', target: 'fn_run', label: 'Данные', junior: 'Чтение строк Excel.', type: 'data', code: 'checks = self.load_checks_from_excel()' } },
+                    { data: { source: 'fn_run', target: 'fn_process', label: 'Вызов', junior: 'Запуск обработки пакета.', type: 'control', code: 'self.process_batch(chunk)' } },
+
+                    // Processing Steps
+                    // 1. Upload
+                    { data: { source: 'fn_process', target: 'fn_upload', label: 'Вызов', junior: 'Запрос на загрузку.', type: 'control', code: 'file_id = self.upload_file(check_number)' } },
+                    { data: { source: 'fn_upload', target: 'api_upload', label: 'POST', junior: 'HTTP запрос.', type: 'api', payload: '{"file": "base64..."}', code: 'session.post(FILE_UPLOAD_URL, ...)' } },
+                    { data: { source: 'api_upload', target: 'fn_upload', label: 'Ответ', junior: 'Возврат ID.', type: 'api', payload: '{"fileGuid": "..."}' } },
+                    { data: { source: 'fn_upload', target: 'fn_process', label: 'Return', junior: 'Возврат результата.', type: 'data', code: 'return file_id' } },
+
+                    // 2. Captcha
+                    { data: { source: 'fn_process', target: 'fn_captcha', label: 'Вызов', junior: 'Запрос капчи.', type: 'control', code: 'captcha_id, img = self.get_captcha()' } },
+                    { data: { source: 'fn_captcha', target: 'api_captcha', label: 'GET', junior: 'HTTP запрос.', type: 'api', code: 'session.get(CAPTCHA_URL)' } },
+                    { data: { source: 'api_captcha', target: 'fn_captcha', label: 'Ответ', junior: 'Картинка.', type: 'api', payload: '{"captcha": "base64..."}' } },
+                    { data: { source: 'fn_captcha', target: 'fn_process', label: 'Return', junior: 'Возврат.', type: 'data', code: 'return id, image' } },
+
+                    // 3. Solve
+                    { data: { source: 'fn_process', target: 'fn_gemini', label: 'Вызов', junior: 'Запрос к ИИ.', type: 'control', code: 'solver.solve_batch(images)' } },
+                    { data: { source: 'fn_gemini', target: 'api_google', label: 'API Call', junior: 'Сетевой запрос.', type: 'api', payload: 'GenerateContentRequest', code: 'model.generate_content(...)' } },
+                    { data: { source: 'api_google', target: 'fn_gemini', label: 'Ответ', junior: 'Текст.', type: 'api', payload: 'Candidates[0].text' } },
+                    { data: { source: 'fn_gemini', target: 'fn_process', label: 'Return', junior: 'Возврат.', type: 'data', code: 'return ["123", ...]' } },
+
+                    // 4. Submit
+                    { data: { source: 'fn_process', target: 'fn_submit', label: 'Вызов', junior: 'Отправка чека.', type: 'control', code: 'self.submit_check_edit(...)' } },
+                    { data: { source: 'fn_submit', target: 'api_submit', label: 'POST', junior: 'HTTP запрос.', type: 'api', payload: '{"paymentId": ..., "captchaValue": ...}', code: 'session.post(SUBMIT_URL, ...)' } },
+                    { data: { source: 'api_submit', target: 'fn_submit', label: 'Ответ', junior: 'Результат.', type: 'api', payload: '{"success": true}' } },
+
+                    // 5. Save
+                    { data: { source: 'fn_process', target: 'fn_save', label: 'Вызов', junior: 'Сохранение.', type: 'control', code: 'self.save_progress()' } },
+                    { data: { source: 'fn_save', target: 'f_progress', label: 'Write', junior: 'Запись на диск.', type: 'data', code: 'json.dump(...)' } },
+
+                    // Session Refresh Flow
+                    { data: { source: 'fn_upload', target: 'fn_detect401', label: 'Catch', junior: 'Перехват ошибки.', type: 'control', code: 'except HTTPError:' } },
+                    { data: { source: 'fn_submit', target: 'fn_detect401', label: 'Catch', junior: 'Перехват ошибки.', type: 'control', code: 'except HTTPError:' } },
+
+                    { data: { source: 'fn_detect401', target: 'fn_session_refresh', label: 'Call', junior: 'Запуск восстановления.', type: 'control', code: 'self.handle_session_expired()' } },
+
+                    { data: { source: 'fn_session_refresh', target: 'fn_chrome_launcher', label: 'Exec', junior: 'Запуск процесса.', type: 'control', code: 'subprocess.Popen(...)' } },
+                    { data: { source: 'fn_chrome_launcher', target: 'user_login', label: 'Wait', junior: 'Ожидание.', type: 'control', code: 'input("Press ENTER")' } },
+
+                    { data: { source: 'user_login', target: 'fn_cookie_extract', label: 'Next', junior: 'Продолжение.', type: 'control', code: 'subprocess.run(...)' } },
+
+                    { data: { source: 'fn_cookie_extract', target: 'fn_config_reload', label: 'Update', junior: 'Обновление.', type: 'data', code: 'reload(config)' } },
+
+                    { data: { source: 'fn_config_reload', target: 'fn_process', label: 'Resume', junior: 'Возврат в цикл.', type: 'control', code: 'return True' } }
+                ]
+            },
+
+            layout: {
+                name: 'dagre',
+                rankDir: 'LR',
+                nodeSep: 50,
+                rankSep: 100,
+                padding: 40
+            }
+        });
+
+        // Interaction Logic
+        cy.on('tap', 'node', function (evt) {
+            var node = evt.target;
+            if (node.isParent()) return; // Don't show details for groups
+
+            document.getElementById('default-info').style.display = 'none';
+            document.getElementById('edge-details').style.display = 'none';
+            document.getElementById('node-details').style.display = 'block';
+
+            // Basic Info
+            document.getElementById('node-name').innerHTML = node.data('label').replace(/\n/g, ' ');
+            document.getElementById('node-description').innerHTML = node.data('desc');
+            document.getElementById('node-code').innerHTML = node.data('code') || '// Нет примера кода';
+
+            // Junior Info
+            var juniorText = node.data('junior') || "Для этого элемента пока нет простого описания.";
+            var analogyText = node.data('analogy');
+
+            document.getElementById('node-junior-text').innerHTML = juniorText;
+
+            if (analogyText) {
+                document.getElementById('node-analogy-container').style.display = 'block';
+                document.getElementById('node-analogy-text').innerHTML = analogyText;
+            } else {
+                document.getElementById('node-analogy-container').style.display = 'none';
+            }
+
+            // Tags
+            var type = node.data('type');
+            var typeLabel = type === 'function' ? 'Функция (Код)' : type === 'data' ? 'Файл (Данные)' : 'API (Сервис)';
+            var typeClass = type === 'function' ? 'tag-logic' : type === 'data' ? 'tag-data' : 'tag-tech';
+
+            document.getElementById('node-tags').innerHTML = `<span class="tag ${typeClass}">${typeLabel}</span>`;
+
+            // Connections
+            var connections = node.connectedEdges();
+            var listHtml = '';
+            connections.forEach(function (edge) {
+                var isSource = edge.source().id() === node.id();
+                var otherNode = isSource ? edge.target() : edge.source();
+                var arrow = isSource ? '→' : '←';
+                var color = isSource ? '#4ec9b0' : '#ce9178';
+                listHtml += `<li style="border-left-color:${color}">
+                    <span style="color:${color}; font-weight:bold; font-size:16px;">${arrow}</span>
+                    <div>
+                        <div style="font-weight:bold; color:#eee;">${otherNode.data('label').replace(/\n/g, ' ')}</div>
+                        <div style="font-size:11px; color:#888;">${edge.data('label')}</div>
+                    </div>
+                </li>`;
+            });
+            document.getElementById('node-connections').innerHTML = listHtml;
+
+            highlightElement(node);
+        });
+
+        cy.on('tap', 'edge', function (evt) {
+            var edge = evt.target;
+
+            document.getElementById('default-info').style.display = 'none';
+            document.getElementById('node-details').style.display = 'none';
+            document.getElementById('edge-details').style.display = 'block';
+
+            var sourceName = edge.source().data('label').replace(/\n/g, ' ');
+            var targetName = edge.target().data('label').replace(/\n/g, ' ');
+
+            document.getElementById('edge-name').innerHTML = `${sourceName} <span style="color:#4fc1ff">→</span> ${targetName}`;
+            document.getElementById('edge-junior-text').innerHTML = edge.data('junior') || "Передача данных между компонентами.";
+            document.getElementById('edge-payload').innerHTML = edge.data('payload') || "Сигнал управления";
+            document.getElementById('edge-timing').innerHTML = edge.data('type') === 'api' ? "⏱️ Зависит от сети" : "⚡ Мгновенно";
+
+            highlightElement(edge);
+        });
+
+        cy.on('tap', function (evt) {
+            if (evt.target === cy) {
+                resetHighlight();
+                document.getElementById('node-details').style.display = 'none';
+                document.getElementById('edge-details').style.display = 'none';
+                document.getElementById('default-info').style.display = 'block';
+            }
+        });
+
+        function highlightElement(ele) {
+            resetHighlight();
+            ele.addClass('highlighted');
+            if (ele.isNode()) {
+                ele.connectedEdges().addClass('highlighted');
+                ele.connectedEdges().connectedNodes().addClass('highlighted');
+            } else {
+                ele.source().addClass('highlighted');
+                ele.target().addClass('highlighted');
+            }
+        }
+
+        function resetHighlight() {
+            cy.elements().removeClass('highlighted dimmed');
+        }
+
+        // Navigation Functions
+        function resetView() {
+            cy.fit();
+            cy.center();
+            resetHighlight();
+        }
+
+        function fitView() { cy.fit(); }
+        function zoomIn() { cy.zoom(cy.zoom() * 1.2); }
+        function zoomOut() { cy.zoom(cy.zoom() / 1.2); }
+
+        function showCriticalPath() {
+            resetHighlight();
+            var pathIds = ['f_excel', 'fn_run', 'fn_process', 'fn_upload', 'api_upload', 'fn_captcha', 'api_captcha', 'fn_gemini', 'api_google', 'fn_submit', 'api_submit', 'fn_save'];
+            pathIds.forEach(id => {
+                var el = cy.getElementById(id);
+                el.addClass('highlighted');
+                el.connectedEdges().addClass('highlighted');
+            });
+            cy.fit(cy.elements('.highlighted'), 50);
+        }
+
+        // Init
+        cy.ready(function () {
+            cy.fit();
+        });
+
+        // Search
+        document.getElementById('search-box').addEventListener('input', function (e) {
+            var term = e.target.value.toLowerCase();
+            if (!term) { resetHighlight(); return; }
+
+            cy.elements().removeClass('highlighted');
+            var found = cy.nodes().filter(n => n.data('label').toLowerCase().includes(term));
+            found.addClass('highlighted');
+        });
+
+    </script>
+    <script type="module" src="/index.tsx"></script>
+</body>
+
+</html>

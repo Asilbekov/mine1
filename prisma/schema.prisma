@@ -1,0 +1,46 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model ProjectConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  type      String   // "string", "number", "boolean", "json"
+  category  String   // "api", "automation", "gemini", "limits"
+  updatedAt DateTime @updatedAt
+}
+
+model AutomationLog {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  level     String
+  message   String
+  details   Json?
+}
+
+model Check {
+  id              String   @id @default(cuid())
+  receiptId       String   @unique
+  status          String   // "pending", "processing", "completed", "failed"
+  resultData      Json?
+  error           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  batchId         String?
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  service   String   // "gemini", "mistral", "openrouter"
+  key       String
+  isActive  Boolean  @default(true)
+  usageCount Int     @default(0)
+  lastUsed  DateTime?
+}
