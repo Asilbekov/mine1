@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -20,10 +20,13 @@ import {
     AlertTriangle,
     GitBranch,
     X,
-    Code2
+    Code2,
+    Save,
+    RefreshCw,
+    Loader2
 } from 'lucide-react';
 import { motion, Reorder, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 
 type Param = {
@@ -43,6 +46,16 @@ type LogicNode = {
     params: Param[];
 };
 
+// Map config keys to node parameters
+const NODE_CONFIG_MAP: Record<string, string[]> = {
+    '1': ['EXCEL_FILE', 'BATCH_SIZE'],
+    '2': ['SESSION_CHECK_INTERVAL'],
+    '3': ['CHECK_NUMBER_COLUMN'],
+    '4': ['GEMINI_MODEL', 'GEMINI_MAX_IMAGES_PER_BATCH'],
+    '5': ['ZIP_FILE', 'UPLOAD_MAX_RETRIES'],
+    '6': ['SUBMIT_URL', 'REQUEST_DELAY'],
+};
+
 const INITIAL_NODES: LogicNode[] = [
     {
         id: '1',
@@ -52,7 +65,7 @@ const INITIAL_NODES: LogicNode[] = [
         icon: Zap,
         enabled: true,
         params: [
-            { key: 'EXCEL_FILE', label: 'Excel File Name', value: 'Асилбекова Июнь тахрирлаш 20303 та.xlsx', type: 'text' },
+            { key: 'EXCEL_FILE', label: 'Excel File Name', value: '', type: 'text' },
             { key: 'BATCH_SIZE', label: 'Batch Size', value: '50', type: 'number' }
         ]
     },
@@ -81,7 +94,7 @@ const INITIAL_NODES: LogicNode[] = [
     {
         id: '4',
         title: 'Solve CAPTCHA',
-        description: 'Send image to Gemini 1.5 Flash',
+        description: 'Send image to Gemini Flash',
         type: 'action',
         icon: Brain,
         enabled: true,
@@ -120,6 +133,39 @@ export function LogicEditor() {
     const [nodes, setNodes] = useState<LogicNode[]>(INITIAL_NODES);
     const [viewMode, setViewMode] = useState<'list' | 'graph'>('list');
     const [selectedNode, setSelectedNode] = useState<LogicNode | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
+
+    // Load config values from API on mount
+    useEffect(() => {
+        loadConfigValues();
+    }, []);
+
+    const loadConfigValues = async () => {
+        try {
+            const response = await fetch('/api/config');
+            const data = await response.json();
+
+            if (data.success && data.data.length > 0) {
+                // Update nodes with values from database
+                setNodes(prevNodes => prevNodes.map(node => ({
+                    ...node,
+                    params: node.params.map(param => {
+                        const configItem = data.data.find((c: any) => c.key === param.key);
+                        if (configItem) {
+                            return { ...param, value: configItem.value };
+                        }
+                        return param;
+                    })
+                })));
+            }
+        } catch (error) {
+            console.error('Error loading config:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleUpdateParam = (nodeId: string, paramKey: string, newValue: string) => {
         setNodes(nodes.map(node => {
@@ -131,7 +177,60 @@ export function LogicEditor() {
             }
             return node;
         }));
+        setHasChanges(true);
     };
+
+    const saveToDatabase = async () => {
+        setIsSaving(true);
+        try {
+            // Collect all params from all nodes
+            const configUpdates: any[] = [];
+            nodes.forEach(node => {
+                node.params.forEach(param => {
+                    configUpdates.push({
+                        key: param.key,
+                        value: param.value,
+                        type: param.type === 'number' ? 'number' : 'string',
+                        category: getCategoryForKey(param.key),
+                        label: param.label
+                    });
+                });
+            });
+
+            const response = await fetch('/api/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(configUpdates)
+            });
+
+            if (response.ok) {
+                setHasChanges(false);
+                alert('Pipeline configuration saved to database!');
+            }
+        } catch (error) {
+            console.error('Error saving config:', error);
+            alert('Failed to save configuration');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const getCategoryForKey = (key: string): string => {
+        if (key.includes('GEMINI')) return 'gemini';
+        if (key.includes('FILE') || key.includes('ZIP') || key.includes('EXCEL')) return 'files';
+        if (key.includes('DELAY') || key.includes('RETRIES') || key.includes('BATCH')) return 'performance';
+        if (key.includes('URL')) return 'api';
+        return 'general';
+    };
+
+    if (isLoading) {
+        return (
+            <div className="h-full flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mr-3" />
+                <span>Loading pipeline configuration...</span>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 h-full flex flex-col">
@@ -141,9 +240,14 @@ export function LogicEditor() {
                         <GitBranch className="h-5 w-5 text-primary" />
                         Automation Pipeline
                     </h3>
-                    <p className="text-muted-foreground">Define the execution flow for your Python workers</p>
+                    <p className="text-muted-foreground">Define the execution flow - changes sync to database</p>
                 </div>
                 <div className="flex gap-2">
+                    {hasChanges && (
+                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400">
+                            Unsaved changes
+                        </Badge>
+                    )}
                     <Button
                         variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                         onClick={() => setViewMode('list')}
@@ -158,7 +262,13 @@ export function LogicEditor() {
                     >
                         Graph View
                     </Button>
-                    <Button variant="outline" size="sm"><Plus className="w-4 h-4 mr-2" /> Add Node</Button>
+                    <Button variant="outline" size="sm" onClick={loadConfigValues}>
+                        <RefreshCw className="w-4 h-4 mr-2" /> Reload
+                    </Button>
+                    <Button size="sm" onClick={saveToDatabase} disabled={isSaving || !hasChanges}>
+                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                        Save to DB
+                    </Button>
                 </div>
             </div>
 
@@ -185,6 +295,14 @@ export function LogicEditor() {
                                                     <Badge variant="outline" className="text-[10px] uppercase tracking-wider">{node.type}</Badge>
                                                 </div>
                                                 <p className="text-sm text-muted-foreground">{node.description}</p>
+                                                {/* Show current param values */}
+                                                <div className="flex gap-2 mt-1 flex-wrap">
+                                                    {node.params.slice(0, 2).map(p => (
+                                                        <Badge key={p.key} variant="secondary" className="text-[10px] font-mono">
+                                                            {p.key}: {p.value.length > 20 ? p.value.substring(0, 20) + '...' : p.value}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
                                             </div>
 
                                             <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -227,7 +345,7 @@ export function LogicEditor() {
                                 })}
                             </svg>
 
-                            {nodes.map((node, index) => (
+                            {nodes.map((node) => (
                                 <div key={node.id} className="relative z-10" onClick={() => setSelectedNode(node)}>
                                     <motion.div
                                         whileHover={{ scale: 1.05 }}
@@ -255,31 +373,34 @@ export function LogicEditor() {
             </div>
 
             <Dialog open={!!selectedNode} onOpenChange={(open) => !open && setSelectedNode(null)}>
-                <DialogContent className="sm:max-w-[425px]">
+                <DialogContent className="sm:max-w-[500px]">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
                             {selectedNode && <selectedNode.icon className="w-5 h-5 text-primary" />}
                             Edit {selectedNode?.title}
                         </DialogTitle>
                         <DialogDescription>
-                            Configure input parameters for this step.
+                            Configure parameters for this step. Changes are saved to the database.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
                         {selectedNode?.params.map((param) => (
-                            <div key={param.key} className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor={param.key} className="text-right text-xs uppercase text-muted-foreground font-bold col-span-1">
-                                    {param.label}
-                                </Label>
-                                <div className="col-span-3">
-                                    <Input
-                                        id={param.key}
-                                        value={nodes.find(n => n.id === selectedNode.id)?.params.find(p => p.key === param.key)?.value || ''}
-                                        onChange={(e) => handleUpdateParam(selectedNode.id, param.key, e.target.value)}
-                                        className="font-mono text-xs"
-                                    />
-                                    <p className="text-[10px] text-muted-foreground mt-1">Config Key: {param.key}</p>
+                            <div key={param.key} className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor={param.key} className="font-medium">
+                                        {param.label}
+                                    </Label>
+                                    <code className="text-xs text-muted-foreground bg-white/5 px-2 py-0.5 rounded">
+                                        {param.key}
+                                    </code>
                                 </div>
+                                <Input
+                                    id={param.key}
+                                    value={nodes.find(n => n.id === selectedNode.id)?.params.find(p => p.key === param.key)?.value || ''}
+                                    onChange={(e) => handleUpdateParam(selectedNode.id, param.key, e.target.value)}
+                                    className="font-mono"
+                                    type={param.type === 'number' ? 'number' : 'text'}
+                                />
                             </div>
                         ))}
                         {(!selectedNode?.params || selectedNode.params.length === 0) && (
@@ -288,8 +409,11 @@ export function LogicEditor() {
                             </div>
                         )}
                     </div>
-                    <DialogFooter>
-                        <Button type="submit" onClick={() => setSelectedNode(null)}>Save Changes</Button>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setSelectedNode(null)}>Cancel</Button>
+                        <Button onClick={() => { setSelectedNode(null); }}>
+                            Apply Changes
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

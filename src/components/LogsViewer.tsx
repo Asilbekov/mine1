@@ -1,79 +1,175 @@
 
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AlertCircle, CheckCircle2, Info, Terminal } from 'lucide-react';
+import { RefreshCw, AlertCircle, CheckCircle2, XCircle, AlertTriangle, Info, Trash2 } from 'lucide-react';
 
 type LogEntry = {
     id: string;
     timestamp: string;
-    level: 'INFO' | 'WARN' | 'ERROR' | 'SUCCESS';
+    level: string;
     message: string;
-    source: string;
+    checkId?: string;
+    workerId?: string;
+    details?: any;
 };
 
-const MOCK_LOGS: LogEntry[] = [
-    { id: '1', timestamp: '12:30:45', level: 'INFO', message: 'Worker #1 initialized and ready', source: 'System' },
-    { id: '2', timestamp: '12:30:46', level: 'INFO', message: 'Connected to Neon DB instance', source: 'Database' },
-    { id: '3', timestamp: '12:31:02', level: 'SUCCESS', message: 'Check #84920 processed successfully', source: 'Worker #1' },
-    { id: '4', timestamp: '12:31:05', level: 'WARN', message: 'Response time high (1.2s)', source: 'Network' },
-    { id: '5', timestamp: '12:31:10', level: 'INFO', message: 'Gemini AI processing image batch...', source: 'AI Service' },
-    { id: '6', timestamp: '12:31:15', level: 'ERROR', message: 'Failed to upload attachment: Timeout', source: 'Worker #3' },
-    { id: '7', timestamp: '12:31:16', level: 'INFO', message: 'Retrying upload (Attempt 2/3)', source: 'Worker #3' },
-    { id: '8', timestamp: '12:32:00', level: 'SUCCESS', message: 'Batch #102 completed', source: 'Orchestrator' },
-];
+const LOG_LEVELS = ['ALL', 'INFO', 'WARNING', 'ERROR', 'DEBUG'];
 
 export function LogsViewer() {
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [filter, setFilter] = useState('ALL');
+    const [autoRefresh, setAutoRefresh] = useState(false);
+
+    useEffect(() => {
+        fetchLogs();
+    }, [filter]);
+
+    useEffect(() => {
+        if (autoRefresh) {
+            const interval = setInterval(fetchLogs, 5000);
+            return () => clearInterval(interval);
+        }
+    }, [autoRefresh, filter]);
+
+    const fetchLogs = async () => {
+        try {
+            const levelParam = filter !== 'ALL' ? `&level=${filter}` : '';
+            const response = await fetch(`/api/logs?limit=200${levelParam}`);
+            const data = await response.json();
+            if (data.success) {
+                setLogs(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const clearLogs = async () => {
+        if (!confirm('Are you sure you want to clear all logs?')) return;
+        try {
+            await fetch('/api/logs', { method: 'DELETE' });
+            setLogs([]);
+        } catch (error) {
+            console.error('Error clearing logs:', error);
+        }
+    };
+
+    const getLevelIcon = (level: string) => {
+        switch (level.toUpperCase()) {
+            case 'INFO': return <Info className="h-4 w-4 text-blue-400" />;
+            case 'WARNING': return <AlertTriangle className="h-4 w-4 text-yellow-400" />;
+            case 'ERROR': return <XCircle className="h-4 w-4 text-red-400" />;
+            case 'DEBUG': return <CheckCircle2 className="h-4 w-4 text-gray-400" />;
+            default: return <AlertCircle className="h-4 w-4 text-muted-foreground" />;
+        }
+    };
+
+    const getLevelColor = (level: string) => {
+        switch (level.toUpperCase()) {
+            case 'INFO': return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+            case 'WARNING': return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+            case 'ERROR': return 'bg-red-500/10 text-red-400 border-red-500/20';
+            case 'DEBUG': return 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+            default: return 'bg-white/5 text-muted-foreground border-white/10';
+        }
+    };
+
+    const formatTimestamp = (timestamp: string) => {
+        const date = new Date(timestamp);
+        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
+    // If no logs from API, show demo data
+    const displayLogs = logs.length > 0 ? logs : [
+        { id: '1', timestamp: new Date().toISOString(), level: 'INFO', message: 'No logs yet. Start automation to see activity.' },
+    ];
+
     return (
-        <Card className="h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Terminal className="h-5 w-5" />
-                    System Logs
-                </CardTitle>
-                <CardDescription>Real-time execution stream from Python workers</CardDescription>
-            </CardHeader>
-            <CardContent className="flex-1 min-h-[400px]">
-                <div className="bg-black/80 backdrop-blur-md rounded-lg border border-white/10 p-4 font-mono text-xs h-full overflow-hidden flex flex-col shadow-inner">
-                    <div className="flex justify-between items-center text-muted-foreground mb-2 pb-2 border-b border-white/10">
-                        <span>Terminal Output</span>
-                        <div className="flex gap-2">
-                            <span className="flex items-center gap-1"><div className="w-2 h-2 rounded-full bg-green-500"></div> Connected</span>
-                        </div>
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                    <CardTitle>Automation Logs</CardTitle>
+                    <CardDescription>Real-time system activity and check processing logs</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                    <div className="flex gap-1">
+                        {LOG_LEVELS.map(level => (
+                            <Button
+                                key={level}
+                                variant={filter === level ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setFilter(level)}
+                                className="text-xs"
+                            >
+                                {level}
+                            </Button>
+                        ))}
                     </div>
-                    <ScrollArea className="flex-1 pr-4">
-                        <div className="space-y-1.5">
-                            {MOCK_LOGS.map((log) => (
-                                <div key={log.id} className="flex gap-3 hover:bg-white/5 p-0.5 rounded px-2 cursor-pointer transition-colors">
-                                    <span className="text-zinc-500 shrink-0 select-none">[{log.timestamp}]</span>
-                                    <Badge
-                                        variant="outline"
-                                        className={`
-                                            h-5 text-[10px] px-1 uppercase shrink-0 w-16 justify-center border
-                                            ${log.level === 'INFO' ? 'text-blue-400 border-blue-500/30 bg-blue-500/10 shadow-[0_0_10px_rgba(59,130,246,0.2)]' : ''}
-                                            ${log.level === 'WARN' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10 shadow-[0_0_10px_rgba(234,179,8,0.2)]' : ''}
-                                            ${log.level === 'ERROR' ? 'text-red-400 border-red-500/30 bg-red-500/10 shadow-[0_0_10px_rgba(239,68,68,0.2)]' : ''}
-                                            ${log.level === 'SUCCESS' ? 'text-green-400 border-green-500/30 bg-green-500/10 shadow-[0_0_10px_rgba(34,197,94,0.2)]' : ''}
-                                        `}
-                                    >
-                                        {log.level}
-                                    </Badge>
-                                    <span className="text-zinc-400 font-semibold shrink-0 w-24 truncate">[{log.source}]</span>
-                                    <span className={`
-                                        ${log.level === 'ERROR' ? 'text-red-300' : 'text-zinc-300'}
-                                    `}>
-                                        {log.message}
-                                    </span>
+                    <Button
+                        variant={autoRefresh ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAutoRefresh(!autoRefresh)}
+                    >
+                        <RefreshCw className={`h-4 w-4 mr-1 ${autoRefresh ? 'animate-spin' : ''}`} />
+                        Auto
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={fetchLogs} disabled={isLoading}>
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={clearLogs} className="text-muted-foreground hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent>
+                <ScrollArea className="h-[500px] rounded-lg border border-white/10 bg-black/20 p-4 font-mono text-sm">
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-full text-muted-foreground">
+                            <RefreshCw className="h-6 w-6 animate-spin mr-2" /> Loading logs...
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {displayLogs.map((log) => (
+                                <div
+                                    key={log.id}
+                                    className={`flex items-start gap-3 p-2 rounded-md border ${getLevelColor(log.level)} transition-all hover:brightness-110`}
+                                >
+                                    {getLevelIcon(log.level)}
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className="text-xs text-muted-foreground">{formatTimestamp(log.timestamp)}</span>
+                                            <Badge variant="outline" className="text-[10px] uppercase">{log.level}</Badge>
+                                            {log.workerId && (
+                                                <Badge variant="secondary" className="text-[10px]">Worker {log.workerId}</Badge>
+                                            )}
+                                            {log.checkId && (
+                                                <Badge variant="secondary" className="text-[10px]">Check {log.checkId}</Badge>
+                                            )}
+                                        </div>
+                                        <p className="text-sm break-words">{log.message}</p>
+                                        {log.details && (
+                                            <pre className="mt-1 text-xs text-muted-foreground overflow-x-auto">
+                                                {JSON.stringify(log.details, null, 2)}
+                                            </pre>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
-                            <div className="animate-pulse flex gap-3 px-2 mt-2">
-                                <span className="text-zinc-600">_</span>
-                            </div>
                         </div>
-                    </ScrollArea>
+                    )}
+                </ScrollArea>
+
+                <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+                    <span>Showing {displayLogs.length} log entries</span>
+                    {autoRefresh && <span className="text-green-500">● Auto-refreshing every 5s</span>}
                 </div>
             </CardContent>
         </Card>

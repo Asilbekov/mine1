@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { LogicEditor } from "@/components/LogicEditor";
 import { FileManager } from "@/components/FileManager";
 import { LogsViewer } from "@/components/LogsViewer";
 import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import {
     Activity,
     Bot,
@@ -22,7 +22,8 @@ import {
     CheckCircle,
     AlertCircle,
     Files,
-    BarChart3
+    BarChart3,
+    Settings2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -35,9 +36,9 @@ export default function Dashboard() {
     return (
         <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans selection:bg-primary/30">
             {/* Ambient Background Effects */}
-            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob" />
-            <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-2000" />
-            <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-4000" />
+            <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob pointer-events-none" />
+            <div className="absolute top-0 right-1/4 w-96 h-96 bg-purple-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-2000 pointer-events-none" />
+            <div className="absolute -bottom-32 left-1/3 w-96 h-96 bg-pink-500/20 rounded-full mix-blend-screen filter blur-[128px] animate-blob animation-delay-4000 pointer-events-none" />
 
             {/* Content Container */}
             <div className="relative z-10 container mx-auto p-6 md:p-8 lg:p-12">
@@ -77,6 +78,7 @@ export default function Dashboard() {
                                 { id: 'overview', icon: BarChart3, label: 'Dashboard', desc: 'Real-time Analytics' },
                                 { id: 'logic', icon: Code, label: 'Logic Editor', desc: 'Flow Builder' },
                                 { id: 'files', icon: Files, label: 'File Manager', desc: 'Assets & Data' },
+                                { id: 'settings', icon: Settings2, label: 'Settings', desc: 'Full Configuration' },
                                 { id: 'models', icon: Bot, label: 'AI Models', desc: 'LLM Configuration' },
                                 { id: 'db', icon: Database, label: 'Data & Logs', desc: 'System Records' },
                             ].map((item) => (
@@ -84,8 +86,8 @@ export default function Dashboard() {
                                     key={item.id}
                                     onClick={() => setActiveTab(item.id)}
                                     className={`w-full text-left group relative flex items-center gap-4 p-4 rounded-xl transition-all duration-300 border ${activeTab === item.id
-                                            ? 'bg-primary/10 border-primary/20 shadow-lg shadow-primary/10'
-                                            : 'bg-card/30 border-transparent hover:bg-card/50 hover:border-white/5'
+                                        ? 'bg-primary/10 border-primary/20 shadow-lg shadow-primary/10'
+                                        : 'bg-card/30 border-transparent hover:bg-card/50 hover:border-white/5'
                                         }`}
                                 >
                                     <div className={`p-2 rounded-lg transition-colors ${activeTab === item.id ? 'bg-primary text-white' : 'bg-white/5 text-muted-foreground group-hover:text-primary'}`}>
@@ -124,32 +126,29 @@ export default function Dashboard() {
                             {activeTab === "overview" && <AnalyticsDashboard />}
                             {activeTab === "db" && <LogsViewer />}
                             {activeTab === "files" && <FileManager />}
+                            {activeTab === "settings" && <SettingsPanel />}
 
                             {activeTab === "models" && (
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>AI Service Configuration</CardTitle>
-                                        <CardDescription>Manage API keys and model preferences</CardDescription>
+                                        <CardDescription>
+                                            Quick access to API keys. For full configuration, use the Settings tab.
+                                        </CardDescription>
                                     </CardHeader>
                                     <CardContent className="space-y-6">
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-muted-foreground">Gemini API Key</label>
-                                            <div className="flex gap-3">
-                                                <Input type="password" placeholder="AIzam..." className="flex-1 bg-background/50" />
-                                                <Button variant="secondary">Update</Button>
-                                            </div>
+                                        <div className="rounded-lg bg-blue-500/10 p-4 border border-blue-500/20 flex gap-3 text-blue-500 text-sm">
+                                            <AlertCircle className="h-5 w-5 shrink-0" />
+                                            <p>
+                                                API keys and session configuration have been moved to the <strong>Settings</strong> tab
+                                                for a more comprehensive management experience. Click on Settings in the sidebar to
+                                                manage all configuration including API keys, session cookies, and system parameters.
+                                            </p>
                                         </div>
-                                        <div className="space-y-2">
-                                            <label className="text-sm font-medium text-muted-foreground">Mistral/OpenRouter Key</label>
-                                            <div className="flex gap-3">
-                                                <Input type="password" placeholder="sk-..." className="flex-1 bg-background/50" />
-                                                <Button variant="secondary">Update</Button>
-                                            </div>
-                                        </div>
-                                        <div className="pt-4 flex items-center gap-4">
-                                            <Button variant="default">Save Configuration</Button>
-                                            <Button variant="ghost">Test Connections</Button>
-                                        </div>
+                                        <Button onClick={() => setActiveTab('settings')} className="w-full">
+                                            <Settings2 className="mr-2 h-4 w-4" />
+                                            Open Full Settings Panel
+                                        </Button>
                                     </CardContent>
                                 </Card>
                             )}
@@ -158,7 +157,7 @@ export default function Dashboard() {
                                 <Card className="h-full border-none shadow-none bg-transparent">
                                     <CardHeader className="px-0 pt-0">
                                         <CardTitle className="text-2xl">Logic Flow Editor</CardTitle>
-                                        <CardDescription>Drag and drop nodes to design your automation workflow.</CardDescription>
+                                        <CardDescription>Drag and drop nodes to design your automation workflow. Changes are saved to the database.</CardDescription>
                                     </CardHeader>
                                     <CardContent className="p-0 h-[600px] rounded-xl overflow-hidden border border-white/10 bg-black/20 backdrop-blur-sm">
                                         <LogicEditor />

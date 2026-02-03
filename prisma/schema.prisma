@@ -9,38 +9,90 @@ datasource db {
 }
 
 model ProjectConfig {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  value     String
-  type      String   // "string", "number", "boolean", "json"
-  category  String   // "api", "automation", "gemini", "limits"
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  type        String   // "string", "number", "boolean", "json"
+  category    String   // "api", "session", "gemini", "performance", "files", "limits"
+  label       String?  // Human-readable label for UI
+  description String?  // Description for UI tooltip
+  updatedAt   DateTime @updatedAt
 }
 
 model AutomationLog {
   id        String   @id @default(cuid())
   timestamp DateTime @default(now())
-  level     String
+  level     String   // "INFO", "WARNING", "ERROR", "DEBUG"
   message   String
+  checkId   String?
+  workerId  String?
   details   Json?
 }
 
 model Check {
   id              String   @id @default(cuid())
   receiptId       String   @unique
-  status          String   // "pending", "processing", "completed", "failed"
+  paymentId       String?
+  terminalId      String?
+  tin             String?
+  paymentDate     String?
+  status          String   // "pending", "processing", "completed", "failed", "captcha_error"
   resultData      Json?
   error           String?
+  retryCount      Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   batchId         String?
+  fileId          String?
+  file            UploadedFile? @relation(fields: [fileId], references: [id])
 }
 
 model ApiKey {
-  id        String   @id @default(cuid())
-  service   String   // "gemini", "mistral", "openrouter"
-  key       String
-  isActive  Boolean  @default(true)
-  usageCount Int     @default(0)
-  lastUsed  DateTime?
+  id          String    @id @default(cuid())
+  service     String    // "gemini", "mistral", "openrouter", "soliq"
+  key         String
+  label       String?   // User-friendly label like "Gemini Key #1"
+  isActive    Boolean   @default(true)
+  isSuspended Boolean   @default(false)
+  usageCount  Int       @default(0)
+  lastUsed    DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+model UploadedFile {
+  id          String   @id @default(cuid())
+  name        String
+  originalName String
+  type        String   // "excel", "zip"
+  size        Int
+  mimeType    String
+  data        Bytes?   // Store file content as bytes (for small files)
+  path        String?  // Or store path if using file system
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  checks      Check[]
+}
+
+model WorkerSession {
+  id          String   @id @default(cuid())
+  workerId    String   @unique
+  status      String   // "idle", "running", "paused", "error"
+  currentFile String?
+  processed   Int      @default(0)
+  successful  Int      @default(0)
+  failed      Int      @default(0)
+  startedAt   DateTime?
+  lastActive  DateTime @default(now())
+  apiKeyId    String?
+}
+
+model SessionCookie {
+  id          String   @id @default(cuid())
+  name        String
+  value       String   @db.Text
+  expiresAt   DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
