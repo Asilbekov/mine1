@@ -502,7 +502,7 @@ export function LogicEditor() {
         setCollapsedCategories(newCollapsed);
     };
 
-    const categories = [...new Set(nodes.map(n => n.category))];
+    const categories = Array.from(new Set(nodes.map(n => n.category)));
     const filteredNodes = searchTerm
         ? nodes.filter(n => n.title.toLowerCase().includes(searchTerm.toLowerCase()) || n.description.toLowerCase().includes(searchTerm.toLowerCase()))
         : nodes;
